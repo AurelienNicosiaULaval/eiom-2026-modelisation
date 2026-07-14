@@ -1,0 +1,128 @@
+---
+title: "Projet intégrateur: une fiche de modèle défendable"
+subtitle: "Relier question, données, validation, décision et limites"
+format:
+  html:
+    embed-resources: true
+---
+
+## Le mandat
+
+En équipe de trois ou quatre, préparez une fiche d'une page qui permet à une personne extérieure au projet de comprendre ce que votre modèle peut soutenir, ce qu'il ne peut pas soutenir et comment vous avez vérifié sa performance.
+
+Ce projet est une activité de synthèse de l'atelier. Il ne constitue pas une évaluation officielle de l'EIOM.
+
+## Choisir une mission
+
+### Mission 1: comprendre une association
+
+Utilisez les données des bibliothèques publiques québécoises. Formulez une question portant sur l'association entre un résultat d'intérêt et au moins deux caractéristiques des bibliothèques. Évitez de placer de part et d'autre du modèle plusieurs ratios partageant le même dénominateur sans justification.
+
+Exemples de résultats possibles:
+
+- fréquentation totale en tenant compte de la population desservie;
+- prêts totaux en tenant compte de la population desservie;
+- participation aux activités;
+- ressources numériques.
+
+### Mission 2: estimer une probabilité
+
+Utilisez l'échantillon des requêtes 311 de Montréal. Estimez, avec les renseignements disponibles à la création, la probabilité qu'une demande ne soit pas terminée dans les sept jours. Proposez ensuite un seuil adapté à un scénario de suivi préventif explicite.
+
+### Mission 3: comparer des modèles
+
+Comparez la régression logistique, un arbre et une forêt aléatoire avec les mêmes fenêtres temporelles et les mêmes mesures. Recommandez une approche en tenant compte de la performance, de l'interprétabilité, de la dérive et du coût de surveillance.
+
+## Canevas de la fiche
+
+### 1. Question
+
+Complétez la phrase:
+
+> Nous voulons utiliser les informations disponibles au moment de ______ pour ______ auprès de ______.
+
+Précisez si l'objectif est descriptif, explicatif ou prédictif.
+
+### 2. Données
+
+Indiquez:
+
+- la source et l'année;
+- l'unité d'observation;
+- le nombre d'observations utilisées;
+- le résultat d'intérêt;
+- les variables prédictives;
+- les valeurs manquantes ou regroupements effectués;
+- une limite de représentativité.
+
+### 3. Protocole
+
+Montrez le chemin suivi.
+
+```{mermaid}
+flowchart LR
+  A[Question] --> B[Données]
+  B --> C[Prétraitement]
+  C --> D[Entraînement]
+  D --> E[Validation]
+  E --> F[Décision]
+  F --> G[Surveillance]
+```
+
+Pour une analyse prédictive, indiquez clairement ce qui a été appris dans les données d'entraînement et ce qui a été mesuré hors échantillon.
+
+### 4. Résultats
+
+Présentez:
+
+- une figure principale;
+- deux mesures pertinentes;
+- une phrase d'interprétation sur l'échelle utile;
+- l'incertitude ou la variabilité observée.
+
+Une mesure ne suffit pas à elle seule. Expliquez pourquoi les mesures retenues correspondent au mandat.
+
+### 5. Décision
+
+Formulez une recommandation conditionnelle:
+
+> Dans ce contexte, nous recommandons ______ parce que ______, à condition de ______.
+
+### 6. Limites et surveillance
+
+Nommez au moins:
+
+1. une limite des données;
+2. une limite du modèle;
+3. un risque de mauvaise interprétation;
+4. un indicateur à surveiller après déploiement ou réutilisation.
+
+## Critères de réussite
+
+La fiche est prête si une autre équipe peut répondre oui aux questions suivantes.
+
+| Question | Oui | À revoir |
+|---|:---:|:---:|
+| L'objectif du modèle est-il explicite? | ☐ | ☐ |
+| L'unité d'observation est-elle claire? | ☐ | ☐ |
+| Le protocole évite-t-il la fuite d'information? | ☐ | ☐ |
+| Les mesures correspondent-elles au mandat? | ☐ | ☐ |
+| La figure peut-elle être comprise sans explication orale? | ☐ | ☐ |
+| La recommandation distingue-t-elle association, prédiction et causalité? | ☐ | ☐ |
+| Les limites sont-elles concrètes? | ☐ | ☐ |
+| Une condition de révision du modèle est-elle proposée? | ☐ | ☐ |
+
+## Déroulement de la restitution
+
+Chaque équipe dispose de trois minutes:
+
+1. 30 secondes pour la question et les données;
+2. 60 secondes pour le protocole;
+3. 60 secondes pour les résultats et la décision;
+4. 30 secondes pour la limite la plus importante.
+
+L'équipe qui écoute pose ensuite une seule question de vérification. Elle doit porter sur les données, la validation, le seuil ou la portée de l'interprétation.
+
+## Après l'atelier
+
+Conservez la fiche comme modèle de documentation. Pour un vrai projet, ajoutez l'historique des versions, la personne responsable, la date de révision prévue et les conséquences connues d'une erreur de prédiction.

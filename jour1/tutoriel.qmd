@@ -1,0 +1,304 @@
+---
+title: "Tutoriel: une clinique de régression linéaire"
+subtitle: "Bibliothèques publiques du Québec, ressource 2024"
+format:
+  html:
+    embed-resources: true
+    code-fold: false
+execute:
+  cache: false
+---
+
+## Objectif
+
+Construire un modèle exploratoire du volume total de visites en tenant compte de la taille de la population desservie, puis vérifier si son interprétation résiste aux diagnostics.
+
+## 1. Charger les paquets et les données
+
+```{r}
+# Load libraries
+library(tidyverse)
+library(broom)
+library(performance)
+library(scales)
+
+# Use a consistent graphical theme
+theme_set(theme_minimal(base_size = 13))
+
+# Import the fixed teaching extract
+bibliotheques <- read_csv(
+  "data/bibliotheques_quebec_2024.csv",
+  show_col_types = FALSE
+)
+
+# Inspect structure
+glimpse(bibliotheques)
+```
+
+## 2. Comprendre l'unité statistique
+
+```{r}
+# Count observations and regions
+bibliotheques |>
+  summarise(
+    n_lignes = n(),
+    n_regions = n_distinct(region_administrative, na.rm = TRUE),
+    n_categories = n_distinct(categorie_bibliotheque, na.rm = TRUE)
+  )
+
+# Audit missing values in modeling variables
+bibliotheques |>
+  summarise(
+    across(
+      c(
+        visites_total,
+        prets_total,
+        depenses_fonctionnement_total,
+        population_desservie
+      ),
+      ~ sum(is.na(.x))
+    )
+  ) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "n_manquantes"
+  )
+```
+
+Une ligne représente une bibliothèque publique ou un centre régional. Les variables sont issues d'une enquête administrative. Elles ne représentent pas des personnes échantillonnées aléatoirement.
+
+## 3. Préparer la table de modélisation
+
+```{r}
+bibliotheques_modele <- bibliotheques |>
+  filter(
+    !is.na(visites_total),
+    !is.na(prets_total),
+    !is.na(depenses_fonctionnement_total),
+    !is.na(population_desservie),
+    population_desservie > 0
+  ) |>
+  mutate(
+    log_visites = log1p(visites_total),
+    log_population = log(population_desservie),
+    log_prets = log1p(prets_total),
+    log_depenses = log1p(depenses_fonctionnement_total)
+  )
+
+dim(bibliotheques_modele)
+```
+
+La transformation `log1p(x)` calcule `log(1 + x)`. Elle accepte les valeurs nulles et réduit l'influence visuelle des bibliothèques qui desservent de très grandes populations. Le modèle principal utilise des volumes totaux plutôt que plusieurs ratios partageant la population au dénominateur [@kronmal1993ratio].
+
+## 4. Explorer avant de modéliser
+
+```{r}
+# Distribution on the original scale
+bibliotheques_modele |>
+  ggplot(aes(visites_total)) +
+  geom_histogram(bins = 30, fill = "#277da1", color = "white") +
+  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    x = "Visites totales, échelle logarithmique",
+    y = "Nombre de bibliothèques",
+    title = "La distribution est fortement asymétrique"
+  )
+```
+
+```{r}
+# Bivariate relation before adjustment
+bibliotheques_modele |>
+  ggplot(aes(log_prets, log_visites)) +
+  geom_point(aes(size = population_desservie), alpha = 0.55, color = "#0f7c80") +
+  geom_smooth(method = "lm", color = "#b5222e") +
+  scale_size_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    x = "log(1 + prêts totaux)",
+    y = "log(1 + visites totales)",
+    size = "Population desservie"
+  )
+```
+
+## 5. Ajuster un modèle multiple
+
+```{r}
+modele_log <- lm(
+  log_visites ~
+    log_population +
+    log_prets +
+    log_depenses,
+  data = bibliotheques_modele
+)
+
+# Compact coefficient table with confidence intervals
+coefficients <- tidy(modele_log, conf.int = TRUE)
+coefficients
+
+# Global fit information
+glance(modele_log)
+```
+
+## 6. Interpréter sur l'échelle originale
+
+Lorsque la réponse et le prédicteur sont tous deux logarithmiques, un coefficient se lit approximativement comme une élasticité conditionnelle. Une hausse de 10 % de `1 + prêts totaux` est associée à une variation de `100 * (1.10^beta - 1)` % de `1 + visites totales`, les autres variables incluses étant maintenues constantes.
+
+```{r}
+interpretation <- coefficients |>
+  filter(term %in% c("log_population", "log_prets", "log_depenses")) |>
+  transmute(
+    terme = term,
+    coefficient = estimate,
+    variation_reponse_pour_10_pct = 100 * (1.10^estimate - 1)
+  )
+
+interpretation
+```
+
+Cette traduction n'est pas une preuve causale. Une dépense plus élevée peut être associée à d'autres caractéristiques non incluses dans le modèle.
+
+## 7. Vérifier si les prédicteurs racontent la même chose
+
+```{r}
+check_collinearity(modele_log)
+```
+
+La population, les prêts et les dépenses sont tous liés à la taille de l'organisation. Une forte colinéarité n'invalide pas automatiquement la prédiction globale, mais elle rend les coefficients conditionnels plus instables et plus difficiles à isoler.
+
+## 8. Examiner les résidus
+
+```{r}
+diagnostics <- augment(modele_log, data = bibliotheques_modele) |>
+  mutate(
+    observation_influente = .cooksd > 4 / n()
+  )
+
+diagnostics |>
+  ggplot(aes(.fitted, .std.resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "#52606d") +
+  geom_point(aes(color = observation_influente), alpha = 0.7) +
+  geom_smooth(se = FALSE, color = "#b5222e") +
+  scale_color_manual(values = c("FALSE" = "#277da1", "TRUE" = "#f4a261")) +
+  labs(
+    x = "Valeurs ajustées",
+    y = "Résidus standardisés",
+    color = "Cook > 4/n"
+  )
+```
+
+On cherche une bande sans courbure nette et sans changement systématique de dispersion.
+
+```{r}
+ggplot(diagnostics, aes(sample = .std.resid)) +
+  stat_qq(alpha = 0.65, color = "#277da1") +
+  stat_qq_line(color = "#b5222e") +
+  labs(
+    x = "Quantiles théoriques",
+    y = "Résidus standardisés"
+  )
+```
+
+Le graphique quantile-quantile est surtout important pour l'inférence dans de petits échantillons. Une déviation en queue ne rend pas automatiquement toutes les estimations inutiles.
+
+## 9. Identifier les observations influentes
+
+```{r}
+observations_influentes <- diagnostics |>
+  arrange(desc(.cooksd)) |>
+  select(
+    bibliotheque,
+    region_administrative,
+    visites_total,
+    .fitted,
+    .std.resid,
+    .hat,
+    .cooksd
+  ) |>
+  slice_head(n = 10)
+
+observations_influentes
+```
+
+Une valeur influente peut être valide et substantiellement importante. Il faut vérifier sa provenance et mesurer la sensibilité des conclusions.
+
+```{r}
+# Sensitivity analysis without the single most influential observation
+nom_plus_influent <- observations_influentes |>
+  slice(1) |>
+  pull(bibliotheque)
+
+modele_sans_plus_influent <- lm(
+  log_visites ~
+    log_population +
+    log_prets +
+    log_depenses,
+  data = bibliotheques_modele |>
+    filter(bibliotheque != nom_plus_influent)
+)
+
+comparaison_coefficients <- bind_rows(
+  tidy(modele_log) |>
+    mutate(modele = "Toutes les observations"),
+  tidy(modele_sans_plus_influent) |>
+    mutate(modele = "Sans la plus influente")
+) |>
+  filter(term != "(Intercept)") |>
+  select(modele, term, estimate, std.error)
+
+comparaison_coefficients
+```
+
+## 10. Produire une prédiction avec intervalle
+
+```{r}
+# Construct a plausible profile using medians
+profil <- bibliotheques_modele |>
+  summarise(
+    log_population = median(log_population),
+    log_prets = median(log_prets),
+    log_depenses = median(log_depenses)
+  )
+
+# Prediction interval on the log scale
+prediction_log <- predict(
+  modele_log,
+  newdata = profil,
+  interval = "prediction",
+  level = 0.95
+)
+
+# Back-transform interval endpoints to total visits
+prediction_originale <- as_tibble(prediction_log) |>
+  mutate(across(everything(), expm1))
+
+prediction_originale
+```
+
+La transformation inverse donne un intervalle asymétrique sur l'échelle originale. La valeur centrale transformée vise une médiane conditionnelle approximative plutôt qu'une moyenne exactement corrigée du biais de retransformation.
+
+## 11. Rédiger la conclusion
+
+Une conclusion solide doit inclure:
+
+1. l'unité statistique;
+2. l'association conditionnelle étudiée;
+3. l'incertitude;
+4. un résultat de diagnostic;
+5. les limites des données administratives et de la colinéarité;
+6. l'absence de conclusion causale.
+
+## Extension: une interaction à tester
+
+```{r}
+#| eval: false
+modele_interaction <- lm(
+  log_visites ~
+    log_population +
+    log_prets * log_depenses,
+  data = bibliotheques_modele
+)
+
+anova(modele_log, modele_interaction)
+```
+
+Une interaction doit répondre à une hypothèse substantielle. Elle ne doit pas être ajoutée uniquement parce qu'elle améliore une statistique dans l'échantillon.

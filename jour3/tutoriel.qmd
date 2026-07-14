@@ -1,0 +1,434 @@
+---
+title: "Tutoriel: trois modèles, une comparaison équitable"
+subtitle: "Régression logistique, arbre et forêt aléatoire"
+format:
+  html:
+    embed-resources: true
+    code-fold: false
+execute:
+  cache: false
+---
+
+## Objectif
+
+Comparer trois modèles supervisés dans les mêmes fenêtres temporelles, puis vérifier une seule fois leurs performances sur une période future tenue à l'écart.
+
+## 1. Charger les paquets et les données
+
+```{r}
+# Load libraries
+library(tidyverse)
+library(tidymodels)
+library(rpart)
+
+# Set graphical theme
+theme_set(theme_minimal(base_size = 13))
+
+# Import and prepare the common modeling table
+requetes_ml <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+) |>
+  mutate(
+    date_creation = as.Date(date_creation),
+    verite = factor(
+      issue_7_jours,
+      levels = c("non_terminee_7_jours", "terminee_7_jours")
+    )
+  ) |>
+  arrange(date_creation, identifiant_requete)
+
+glimpse(requetes_ml)
+```
+
+## 2. Réserver un test futur
+
+```{r}
+date_coupure <- as.Date("2024-10-01")
+
+entrainement_ml <- requetes_ml |>
+  filter(date_creation < date_coupure)
+
+test_ml <- requetes_ml |>
+  filter(date_creation >= date_coupure)
+
+tibble(
+  ensemble = c("Entraînement", "Test futur"),
+  n = c(nrow(entrainement_ml), nrow(test_ml)),
+  debut = c(min(entrainement_ml$date_creation), min(test_ml$date_creation)),
+  fin = c(max(entrainement_ml$date_creation), max(test_ml$date_creation))
+)
+```
+
+Le test futur n'intervient ni dans la préparation, ni dans le réglage, ni dans le classement initial des modèles.
+
+## 3. Construire des fenêtres de validation temporelle
+
+```{r}
+plis_temporels <- sliding_period(
+  entrainement_ml,
+  index = date_creation,
+  period = "month",
+  lookback = 3,
+  assess_stop = 1,
+  complete = TRUE,
+  step = 1
+)
+
+plis_temporels
+```
+
+Chaque fenêtre apprend sur quatre mois consécutifs, puis évalue le mois suivant.
+
+```{r}
+resume_plis <- tibble(
+  pli = plis_temporels$id,
+  n_entrainement = map_int(
+    plis_temporels$splits,
+    ~ nrow(analysis(.x))
+  ),
+  periode_entrainement = map_chr(
+    plis_temporels$splits,
+    ~ paste(
+      range(analysis(.x)$date_creation),
+      collapse = " au "
+    )
+  ),
+  n_validation = map_int(
+    plis_temporels$splits,
+    ~ nrow(assessment(.x))
+  ),
+  periode_validation = map_chr(
+    plis_temporels$splits,
+    ~ paste(
+      range(assessment(.x)$date_creation),
+      collapse = " au "
+    )
+  )
+)
+
+resume_plis
+```
+
+Une validation aléatoire répondrait à une autre question: le modèle fonctionne-t-il sur des lignes semblables mélangées dans le temps? Ici, la question porte sur le mois suivant.
+
+## 4. Définir une recette commune
+
+```{r}
+recette_ml <- recipe(
+  verite ~
+    jour_semaine +
+    plage_horaire +
+    activite +
+    type_lieu +
+    arrondissement +
+    provenance,
+  data = entrainement_ml
+) |>
+  step_novel(
+    all_nominal_predictors(),
+    new_level = "Nouveau"
+  ) |>
+  step_unknown(
+    all_nominal_predictors(),
+    new_level = "Non précisé"
+  ) |>
+  step_other(
+    activite,
+    threshold = 0.01,
+    other = "Autres activités"
+  ) |>
+  step_other(
+    type_lieu,
+    threshold = 0.01,
+    other = "Autres lieux"
+  ) |>
+  step_other(
+    arrondissement,
+    threshold = 0.005,
+    other = "Autres territoires"
+  ) |>
+  step_other(
+    provenance,
+    threshold = 0.005,
+    other = "Autres canaux"
+  ) |>
+  step_zv(all_predictors())
+
+recette_ml
+```
+
+Tous les modèles reçoivent exactement la même information. Les variables qui construisent la réponse demeurent exclues.
+
+## 5. Définir les trois modèles
+
+```{r}
+modele_logistique <- logistic_reg() |>
+  set_engine("glm")
+
+modele_arbre <- decision_tree(
+  cost_complexity = 0.001,
+  tree_depth = 10,
+  min_n = 30
+) |>
+  set_engine("rpart") |>
+  set_mode("classification")
+
+modele_foret <- rand_forest(
+  mtry = 4,
+  min_n = 30,
+  trees = 200
+) |>
+  set_engine(
+    "ranger",
+    importance = "permutation",
+    num.threads = 2
+  ) |>
+  set_mode("classification")
+```
+
+Les hyperparamètres sont fixés pour garder le tutoriel rapide. Dans un projet complet, leur réglage serait effectué à l'intérieur des données d'entraînement, jamais sur le test futur.
+
+## 6. Construire les workflows
+
+```{r}
+ensemble_workflows <- workflow_set(
+  preproc = list(pretraitement = recette_ml),
+  models = list(
+    logistique = modele_logistique,
+    arbre = modele_arbre,
+    foret = modele_foret
+  )
+)
+
+ensemble_workflows
+```
+
+## 7. Évaluer dans les mêmes fenêtres
+
+```{r}
+mesures_ml <- metric_set(
+  roc_auc,
+  pr_auc,
+  brier_class
+)
+
+set.seed(20260828)
+
+resultats_validation <- workflow_map(
+  ensemble_workflows,
+  "fit_resamples",
+  resamples = plis_temporels,
+  metrics = mesures_ml,
+  control = control_resamples(
+    save_workflow = TRUE,
+    verbose = FALSE
+  )
+)
+
+tableau_validation <- collect_metrics(resultats_validation) |>
+  select(wflow_id, .metric, mean, std_err)
+
+tableau_validation
+```
+
+L'aire ROC et l'aire précision-rappel sont meilleures lorsqu'elles sont élevées. Le score de Brier est meilleur lorsqu'il est faible.
+
+```{r}
+tableau_validation |>
+  mutate(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    )
+  ) |>
+  ggplot(aes(mean, fct_reorder(modele, mean), color = modele)) +
+  geom_errorbarh(
+    aes(
+      xmin = mean - 1.96 * std_err,
+      xmax = mean + 1.96 * std_err
+    ),
+    height = 0.15
+  ) +
+  geom_point(size = 3) +
+  facet_wrap(~ .metric, scales = "free_x") +
+  guides(color = "none") +
+  labs(x = "Moyenne des fenêtres temporelles", y = NULL)
+```
+
+Les barres utilisent `1,96 x erreur type` comme repère descriptif. Avec seulement quelques fenêtres temporelles dépendantes, elles ne constituent pas un test universel de différence entre algorithmes.
+
+## 8. Examiner la stabilité entre fenêtres
+
+```{r}
+resultats_par_fenetre <- collect_metrics(
+  resultats_validation,
+  summarize = FALSE
+) |>
+  select(wflow_id, id, .metric, .estimate)
+
+resultats_par_fenetre |>
+  filter(.metric == "roc_auc") |>
+  mutate(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    )
+  ) |>
+  ggplot(aes(id, .estimate, group = modele, color = modele)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.5) +
+  labs(x = "Fenêtre de validation", y = "Aire ROC", color = "Modèle")
+```
+
+Un modèle légèrement meilleur en moyenne, mais très instable d'un mois à l'autre, peut être moins défendable.
+
+## 9. Ajuster sur tout l'entraînement
+
+```{r}
+modeles <- list(
+  logistique = modele_logistique,
+  arbre = modele_arbre,
+  foret = modele_foret
+)
+
+workflows_ajustes <- map(
+  modeles,
+  ~ workflow() |>
+    add_recipe(recette_ml) |>
+    add_model(.x) |>
+    fit(data = entrainement_ml)
+)
+```
+
+## 10. Ouvrir le test futur une seule fois
+
+```{r}
+predictions_finales <- imap_dfr(
+  workflows_ajustes,
+  function(ajustement, nom_modele) {
+    bind_cols(
+      test_ml |>
+        select(date_creation, verite),
+      predict(
+        ajustement,
+        new_data = test_ml,
+        type = "prob"
+      )
+    ) |>
+      mutate(modele = nom_modele)
+  }
+)
+
+resultats_test <- predictions_finales |>
+  group_by(modele) |>
+  mesures_ml(
+    truth = verite,
+    .pred_non_terminee_7_jours,
+    event_level = "first"
+  )
+
+resultats_test
+```
+
+Le test vérifie le choix, mais ne doit pas lancer silencieusement une nouvelle ronde de réglage. Une nouvelle décision après examen du test exige de nouvelles données futures.
+
+## 11. Visualiser l'arbre
+
+```{r}
+arbre_final <- extract_fit_engine(workflows_ajustes$arbre)
+
+par(mar = c(1, 1, 2, 1), xpd = TRUE)
+plot(arbre_final, uniform = TRUE, margin = 0.08)
+text(arbre_final, use.n = TRUE, cex = 0.58)
+```
+
+Un arbre produit une règle inspectable, mais ses premières coupures peuvent changer lorsque les données ou les hyperparamètres changent.
+
+## 12. Examiner l'importance de la forêt
+
+```{r}
+importance_foret <- extract_fit_engine(
+  workflows_ajustes$foret
+)$variable.importance |>
+  enframe(name = "variable", value = "importance") |>
+  arrange(desc(importance))
+
+importance_foret
+```
+
+```{r}
+importance_foret |>
+  slice_head(n = 12) |>
+  ggplot(aes(importance, fct_reorder(variable, importance))) +
+  geom_col(fill = "#0f7c80") +
+  labs(x = "Importance par permutation", y = NULL)
+```
+
+L'importance par permutation mesure une perte de performance lorsque les valeurs d'un prédicteur sont permutées. Elle n'indique ni le sens de l'association, ni un effet causal, ni une importance normative.
+
+## 13. Comparer la calibration finale
+
+```{r}
+calibration_modeles <- predictions_finales |>
+  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
+  group_by(modele, groupe) |>
+  summarise(
+    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
+    frequence_observee = mean(verite == "non_terminee_7_jours"),
+    .groups = "drop"
+  )
+
+ggplot(
+  calibration_modeles,
+  aes(probabilite_moyenne, frequence_observee, color = modele)
+) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "#52606d") +
+  geom_line() +
+  geom_point() +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(
+    x = "Probabilité moyenne prédite",
+    y = "Fréquence observée",
+    color = "Modèle"
+  )
+```
+
+Un gain de discrimination ne garantit pas un gain de calibration.
+
+## 14. Construire une matrice de décision
+
+```{r}
+matrice_decision <- tribble(
+  ~critere, ~logistique, ~arbre, ~foret,
+  "Interprétation globale", "Forte", "Moyenne à forte", "Faible à moyenne",
+  "Relations non linéaires", "À spécifier", "Par coupures", "Par ensemble",
+  "Stabilité", "À mesurer", "Souvent faible", "Souvent meilleure que l'arbre",
+  "Coût de calcul", "Faible", "Faible", "Plus élevé",
+  "Calibration", "À vérifier", "À vérifier", "À vérifier",
+  "Choix final", "Selon le mandat", "Selon le mandat", "Selon le mandat"
+)
+
+matrice_decision
+```
+
+Le meilleur modèle n'est pas automatiquement celui qui obtient la meilleure valeur sur une seule mesure. Le choix combine performance future, stabilité, interprétabilité, calibration et coût de surveillance.
+
+## Extension: provoquer le surajustement
+
+```{r}
+#| eval: false
+arbre_trop_complexe <- decision_tree(
+  cost_complexity = 0,
+  tree_depth = 25,
+  min_n = 2
+) |>
+  set_engine("rpart") |>
+  set_mode("classification")
+```
+
+Comparez ce modèle à l'arbre principal dans les mêmes fenêtres. Un meilleur ajustement apparent sur les données d'entraînement n'implique pas une meilleure performance le mois suivant.

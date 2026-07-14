@@ -1,0 +1,273 @@
+---
+title: "Comprendre une relation"
+subtitle: "Régression linéaire multiple et diagnostics"
+author: "Aurélien Nicosia"
+format:
+  revealjs:
+    theme: [simple, ../styles/slides.scss]
+    embed-resources: true
+    slide-number: c/t
+    progress: true
+    controls: true
+    transition: fade
+    code-overflow: wrap
+    center: false
+    footer: "EIOM 2026 | Jour 1"
+execute:
+  echo: true
+  cache: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(broom)
+library(performance)
+library(scales)
+library(patchwork)
+
+theme_set(theme_minimal(base_size = 18))
+
+bibliotheques <- read_csv(
+  "data/bibliotheques_quebec_2024.csv",
+  show_col_types = FALSE
+)
+
+bibliotheques_modele <- bibliotheques |>
+  filter(
+    !is.na(visites_total),
+    !is.na(prets_total),
+    !is.na(depenses_fonctionnement_total),
+    population_desservie > 0
+  ) |>
+  mutate(
+    log_visites = log1p(visites_total),
+    log_population = log(population_desservie),
+    log_prets = log1p(prets_total),
+    log_depenses = log1p(depenses_fonctionnement_total)
+  )
+```
+
+## À la fin de la matinée
+
+Vous saurez construire un modèle linéaire multiple, l'interpréter, le mettre à l'épreuve et dire clairement ce qu'il ne permet pas de conclure.
+
+::: {.notes}
+2 minutes. Présenter la production finale: une note de service de cinq phrases.
+:::
+
+## Une droite peut être convaincante et trompeuse
+
+```{r}
+#| echo: false
+#| fig-width: 9
+#| fig-height: 5
+bibliotheques_modele |>
+  ggplot(aes(prets_par_habitant, visites_par_habitant)) +
+  geom_point(aes(size = population_desservie), alpha = 0.55, color = "#0f7c80") +
+  geom_smooth(method = "lm", se = TRUE, color = "#b5222e") +
+  scale_size_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    x = "Prêts par habitant",
+    y = "Visites par habitant",
+    size = "Population desservie"
+  ) +
+  guides(size = guide_legend(title.position = "top"))
+```
+
+::: {.question-slide}
+## Que faudrait-il vérifier avant de raconter cette relation?
+:::
+
+::: {.notes}
+8 minutes. Récolter les hypothèses au tableau avant de montrer la liste suivante.
+:::
+
+## Commencer par la question, pas par `lm()`
+
+Trois emplois possibles d'un modèle:
+
+1. décrire une structure observée;
+2. estimer une association conditionnelle;
+3. prédire de nouvelles observations.
+
+<div class="takeaway">Le même modèle peut servir plusieurs emplois, mais ses critères de réussite ne sont pas les mêmes.</div>
+
+## Une ligne représente une organisation
+
+```{r}
+#| echo: false
+#| results: asis
+cat("- ", nrow(bibliotheques), " bibliothèques ou centres régionaux\n", sep = "")
+cat("- ", n_distinct(bibliotheques$region_administrative, na.rm = TRUE), " régions administratives publiées\n", sep = "")
+cat("- ", sum(is.na(bibliotheques$visites_total)), " valeurs manquantes pour les visites totales\n", sep = "")
+```
+
+Une ligne n'est pas une personne, une visite individuelle ni une mesure de qualité.
+
+## Pourquoi les ratios changent l'histoire
+
+```{r}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 4.8
+p1 <- bibliotheques |>
+  ggplot(aes(population_desservie, visites_total)) +
+  geom_point(alpha = 0.6, color = "#277da1") +
+  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  scale_y_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(x = "Population desservie", y = "Visites totales", title = "Volumes")
+
+p2 <- bibliotheques |>
+  ggplot(aes(population_desservie, visites_par_habitant)) +
+  geom_point(alpha = 0.6, color = "#b5222e") +
+  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(x = "Population desservie", y = "Visites par habitant", title = "Ratios")
+
+p1 + p2
+```
+
+::: {.notes}
+Faire nommer la différence entre volume de service et intensité relative.
+:::
+
+## Le modèle multiple répond à une question conditionnelle
+
+$$
+Y_i = \beta_0 + \beta_1 X_{i1} + \cdots + \beta_p X_{ip} + \varepsilon_i
+$$
+
+Ici, un coefficient décrit la différence moyenne attendue dans la réponse pour une unité de différence dans un prédicteur, les autres prédicteurs inclus étant maintenus constants.
+
+Ce n'est pas automatiquement un effet causal.
+
+## Notre modèle de travail
+
+```{r}
+modele_log <- lm(
+  log_visites ~
+    log_population +
+    log_prets +
+    log_depenses,
+  data = bibliotheques_modele
+)
+
+tidy(modele_log, conf.int = TRUE)
+```
+
+## Lire un coefficient sans réciter la sortie
+
+```{r}
+#| echo: false
+coefficient_prets <- tidy(modele_log) |>
+  filter(term == "log_prets") |>
+  pull(estimate)
+
+tibble(
+  hausse_des_prets = c("1 %", "10 %", "25 %"),
+  facteur = c(1.01, 1.10, 1.25),
+  variation_visites_pct = 100 * (facteur^coefficient_prets - 1)
+)
+```
+
+Le coefficient logarithmique traduit une variation relative de `1 + prêts totaux` en variation relative conditionnelle de `1 + visites totales`.
+
+## Des prédicteurs peuvent raconter la même histoire
+
+```{r}
+#| echo: false
+check_collinearity(modele_log)
+```
+
+Population, prêts et dépenses décrivent tous en partie la taille de l'organisation. La prédiction globale peut rester utile même lorsque les coefficients individuels sont difficiles à isoler.
+
+## L'incertitude répond à deux questions différentes
+
+- Intervalle de confiance: où se situe la moyenne attendue?
+- Intervalle de prédiction: où pourrait se situer une nouvelle bibliothèque?
+
+L'intervalle de prédiction est plus large parce qu'il inclut la variabilité individuelle.
+
+## Un modèle doit survivre à quatre questions
+
+1. La forme moyenne est-elle suffisamment bien représentée?
+2. La dispersion des résidus est-elle compatible avec le modèle?
+3. L'inférence est-elle sensible à la forme des résidus?
+4. Quelques observations contrôlent-elles la conclusion?
+
+## Les résidus racontent ce que le modèle a manqué
+
+```{r}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 5
+diagnostics <- augment(modele_log) |>
+  mutate(index = row_number())
+
+p_residus <- diagnostics |>
+  ggplot(aes(.fitted, .std.resid)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "#52606d") +
+  geom_point(alpha = 0.65, color = "#0f7c80") +
+  geom_smooth(se = FALSE, color = "#b5222e") +
+  labs(x = "Valeurs ajustées", y = "Résidus standardisés")
+
+p_qq <- ggplot(diagnostics, aes(sample = .std.resid)) +
+  stat_qq(alpha = 0.65, color = "#277da1") +
+  stat_qq_line(color = "#b5222e") +
+  labs(x = "Quantiles théoriques", y = "Résidus standardisés")
+
+p_residus + p_qq
+```
+
+## Influence ne signifie pas erreur
+
+```{r}
+#| echo: false
+augment(modele_log, data = bibliotheques_modele) |>
+  mutate(seuil_cook = 4 / n()) |>
+  arrange(desc(.cooksd)) |>
+  select(bibliotheque, visites_total, .hat, .std.resid, .cooksd) |>
+  slice_head(n = 6)
+```
+
+Une observation influente doit être comprise, vérifiée et soumise à une analyse de sensibilité. Elle ne doit pas être supprimée automatiquement.
+
+## Clinique de modèle
+
+En équipes, choisissez une station:
+
+1. valeurs manquantes et unité statistique;
+2. forme fonctionnelle et transformation;
+3. résidus, variance et influence;
+4. interprétation et limites causales.
+
+Vous avez 12 minutes, puis 90 secondes pour défendre votre verdict.
+
+## Le piège du dénominateur commun
+
+Une analyse tentante exprimerait la réponse et plusieurs prédicteurs par habitant.
+
+Cela facilite la comparaison de bibliothèques de tailles différentes, mais peut aussi créer ou renforcer des associations parce que plusieurs ratios partagent le même dénominateur. Le modèle principal utilise donc les volumes et inclut la population explicitement [@kronmal1993ratio].
+
+<div class="takeaway">Un bon modèle ne remplace jamais l'examen de la construction des variables.</div>
+
+## La fiche de modèle en cinq lignes
+
+1. Question et usage prévu
+2. Population et unité statistique
+3. Variables et transformations
+4. Diagnostics et résultat principal
+5. Limites et usages interdits
+
+## Ce que nous emportons
+
+- Un coefficient multiple est conditionnel aux variables incluses.
+- Un graphique de résidus cherche une structure que le modèle n'a pas apprise.
+- Une observation influente mérite une analyse de sensibilité.
+- Une association bien estimée n'est pas automatiquement causale.
+- La construction des variables fait partie du modèle.
+
+::: {.question-slide}
+## Quel diagnostic a le plus changé votre lecture du modèle?
+:::

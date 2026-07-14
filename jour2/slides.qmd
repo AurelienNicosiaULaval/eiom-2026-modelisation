@@ -1,0 +1,328 @@
+---
+title: "Estimer un risque"
+subtitle: "Régression logistique, calibration et seuils"
+author: "Aurélien Nicosia"
+format:
+  revealjs:
+    theme: [simple, ../styles/slides.scss]
+    embed-resources: true
+    slide-number: c/t
+    progress: true
+    controls: true
+    transition: fade
+    code-overflow: wrap
+    center: false
+    footer: "EIOM 2026 | Jour 2"
+execute:
+  echo: true
+  cache: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(tidymodels)
+library(broom)
+
+theme_set(theme_minimal(base_size = 18))
+
+requetes_311 <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+) |>
+  mutate(
+    date_creation = as.Date(date_creation),
+    verite = factor(
+      issue_7_jours,
+      levels = c("non_terminee_7_jours", "terminee_7_jours")
+    )
+  ) |>
+  arrange(date_creation, identifiant_requete)
+
+date_coupure <- as.Date("2024-10-01")
+entrainement <- requetes_311 |>
+  filter(date_creation < date_coupure)
+test <- requetes_311 |>
+  filter(date_creation >= date_coupure)
+
+recette_logistique <- recipe(
+  verite ~ jour_semaine + plage_horaire + activite +
+    type_lieu + arrondissement + provenance,
+  data = entrainement
+) |>
+  step_novel(all_nominal_predictors(), new_level = "Nouveau") |>
+  step_unknown(all_nominal_predictors(), new_level = "Non précisé") |>
+  step_other(activite, threshold = 0.01, other = "Autres activités") |>
+  step_other(type_lieu, threshold = 0.01, other = "Autres lieux") |>
+  step_other(arrondissement, threshold = 0.005, other = "Autres territoires") |>
+  step_other(provenance, threshold = 0.005, other = "Autres canaux") |>
+  step_zv(all_predictors())
+
+ajustement_logistique <- workflow() |>
+  add_recipe(recette_logistique) |>
+  add_model(logistic_reg() |> set_engine("glm")) |>
+  fit(data = entrainement)
+
+predictions_test <- bind_cols(
+  test |> select(date_creation, mois_creation, arrondissement, verite),
+  predict(ajustement_logistique, new_data = test, type = "prob")
+)
+```
+
+## À la fin de la matinée
+
+Vous saurez construire une probabilité, vérifier si elle tient dans le futur et choisir un seuil sans oublier les conséquences de l'erreur.
+
+::: {.notes}
+2 minutes. Annoncer la production: une première fiche de modèle.
+:::
+
+::: {.question-slide}
+## Une probabilité de 0,60: agir ou attendre?
+:::
+
+Vous devez décider avant de connaître la réponse.
+
+::: {.notes}
+Faire voter avec les mains. Ne pas donner de contexte avant le vote, puis demander quelles informations manquent.
+:::
+
+## Le scénario
+
+Au moment où une demande 311 est créée, estimer la probabilité qu'elle ne soit pas terminée dans les sept jours.
+
+Une équipe pourrait ensuite examiner préventivement les demandes à risque élevé.
+
+<div class="takeaway">La fenêtre de sept jours est pédagogique. Ce n'est pas une norme officielle.</div>
+
+## Une cible doit être observable et datée
+
+```{mermaid}
+flowchart LR
+  A["Création de la demande"] --> B["Prédiction"]
+  B --> C["Sept jours de suivi"]
+  C --> D["Issue observée"]
+```
+
+Le moment de prédiction détermine les variables autorisées.
+
+## Le test de la fuite
+
+| Variable | Disponible à la création? | Utilisation |
+|---|:---:|---|
+| Activité | Oui | Prédicteur |
+| Arrondissement | Oui | Prédicteur |
+| Canal d'origine | Oui | Prédicteur |
+| Dernier statut | Non | Construction de la cible |
+| Date du dernier statut | Non | Construction de la cible |
+
+::: {.question-slide}
+## Quelle performance obtiendrait un modèle qui utilise le dernier statut?
+:::
+
+## La fréquence change au fil de l'année
+
+```{r}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 5
+requetes_311 |>
+  count(mois_creation, verite) |>
+  group_by(mois_creation) |>
+  mutate(proportion = n / sum(n)) |>
+  filter(verite == "non_terminee_7_jours") |>
+  ggplot(aes(fct_inorder(mois_creation), proportion, group = 1)) +
+  geom_line(color = "#0f7c80", linewidth = 1.2) +
+  geom_point(color = "#b5222e", size = 3) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(x = NULL, y = "Non terminée dans les sept jours") +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1))
+```
+
+## Le futur reste fermé
+
+```{r}
+#| echo: false
+tibble(
+  ensemble = c("Entraînement", "Test futur"),
+  n = c(nrow(entrainement), nrow(test)),
+  debut = c(min(entrainement$date_creation), min(test$date_creation)),
+  fin = c(max(entrainement$date_creation), max(test$date_creation)),
+  prevalence = c(
+    mean(entrainement$verite == "non_terminee_7_jours"),
+    mean(test$verite == "non_terminee_7_jours")
+  )
+)
+```
+
+Un partage temporel imite la question: le modèle appris hier fonctionnera-t-il demain?
+
+## Du 0 ou 1 à une probabilité
+
+$$
+\log\left(\frac{p}{1-p}\right)
+= \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p
+$$
+
+La transformation logit garde la probabilité estimée entre 0 et 1.
+
+## La recette appartient à l'entraînement
+
+```{r}
+recette_logistique <- recipe(
+  verite ~ jour_semaine + plage_horaire + activite +
+    type_lieu + arrondissement + provenance,
+  data = entrainement
+) |>
+  step_novel(all_nominal_predictors()) |>
+  step_unknown(all_nominal_predictors()) |>
+  step_other(activite, threshold = 0.01) |>
+  step_other(type_lieu, threshold = 0.01) |>
+  step_other(arrondissement, threshold = 0.005) |>
+  step_other(provenance, threshold = 0.005)
+```
+
+Les modalités rares, manquantes ou nouvelles sont traitées sans apprendre du test.
+
+## Un rapport de cotes est conditionnel
+
+```{r}
+#| echo: false
+extract_fit_engine(ajustement_logistique) |>
+  tidy() |>
+  mutate(
+    conf.low = estimate - qnorm(0.975) * std.error,
+    conf.high = estimate + qnorm(0.975) * std.error,
+    across(c(estimate, conf.low, conf.high), exp)
+  ) |>
+  filter(term != "(Intercept)") |>
+  filter(str_detect(term, "^(plage_horaire|provenance)")) |>
+  select(term, estimate, conf.low, conf.high) |>
+  arrange(term)
+```
+
+Un rapport de cotes n'est ni une différence de probabilités, ni une preuve causale, ni un classement de la qualité des services.
+
+## Trois questions, trois familles de mesures
+
+1. Classement: le modèle ordonne-t-il correctement les risques?
+2. Calibration: les probabilités correspondent-elles aux fréquences?
+3. Décision: que se passe-t-il à un seuil donné?
+
+<div class="takeaway">Aucune mesure unique ne répond aux trois questions.</div>
+
+## Discrimination sur le test futur
+
+```{r}
+#| echo: false
+metric_set(roc_auc, pr_auc)(
+  predictions_test,
+  truth = verite,
+  .pred_non_terminee_7_jours,
+  event_level = "first"
+)
+```
+
+```{r}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 5
+roc_curve(
+  predictions_test,
+  truth = verite,
+  .pred_non_terminee_7_jours,
+  event_level = "first"
+) |>
+  autoplot() +
+  coord_equal()
+```
+
+## Une bonne aire ROC ne garantit pas une bonne probabilité
+
+```{r}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 5
+calibration <- predictions_test |>
+  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
+  group_by(groupe) |>
+  summarise(
+    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
+    frequence_observee = mean(verite == "non_terminee_7_jours"),
+    n = n(),
+    .groups = "drop"
+  )
+
+ggplot(calibration, aes(probabilite_moyenne, frequence_observee)) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "#52606d") +
+  geom_line(color = "#0f7c80") +
+  geom_point(aes(size = n), color = "#b5222e") +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(x = "Probabilité prédite", y = "Fréquence observée", size = "n")
+```
+
+## Le seuil fabrique les erreurs
+
+| Réalité | Signalée | Non signalée |
+|---|---|---|
+| Non terminée en sept jours | Vrai positif | Faux négatif |
+| Terminée en sept jours | Faux positif | Vrai négatif |
+
+Augmenter le seuil réduit généralement les faux positifs et augmente les faux négatifs.
+
+## Enchère de seuils
+
+Votre équipe reçoit une capacité maximale:
+
+- 10 % des demandes;
+- 20 % des demandes;
+- 35 % des demandes.
+
+Choisissez un seuil, puis annoncez la sensibilité obtenue et l'erreur acceptée.
+
+::: {.notes}
+12 minutes. Utiliser la pratique. Les équipes doivent justifier le seuil par la capacité, pas par 0,5.
+:::
+
+## Les coûts ne tombent pas du ciel
+
+- Qui supporte une vérification inutile?
+- Que signifie manquer une demande à risque?
+- Les conséquences sont-elles identiques pour toutes les activités?
+- La capacité est-elle stable dans le temps?
+
+Un coût numérique est une hypothèse de gouvernance, pas seulement un paramètre statistique.
+
+## Une différence territoriale demande une enquête
+
+Comparer le risque prédit entre arrondissements peut refléter:
+
+- la composition des demandes;
+- des processus distincts;
+- des pratiques de consignation;
+- des transferts vers d'autres systèmes;
+- des variables absentes.
+
+Elle ne mesure pas directement la qualité d'un service [@montreal2026requete311].
+
+## La fiche de modèle, version 1
+
+1. Cible et fenêtre temporelle
+2. Moment de prédiction
+3. Variables autorisées et interdites
+4. Discrimination et calibration
+5. Seuil, capacité et coûts
+6. Limites et surveillance
+
+## Ce que nous emportons
+
+- Une cible binaire doit être définie dans le temps.
+- Le test doit représenter un futur plausible.
+- Une probabilité bien classée peut être mal calibrée.
+- Un seuil est une décision, pas une propriété du modèle.
+- Les conséquences et la gouvernance font partie de l'évaluation.
+
+::: {.question-slide}
+## Quelle information vous manque encore pour défendre un seuil réel?
+:::

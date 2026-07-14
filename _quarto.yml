@@ -1,0 +1,100 @@
+project:
+  type: website
+  output-dir: _site
+  execute-dir: project
+  render:
+    - index.qmd
+    - programme.qmd
+    - diagnostic.qmd
+    - preparation.qmd
+    - ressources.qmd
+    - jour1/*.qmd
+    - jour2/*.qmd
+    - jour3/*.qmd
+    - projet-integrateur.qmd
+  resources:
+    - data/README.md
+    - data/bibliotheques_quebec_2024.csv
+    - data/requetes_311_montreal_2024_eiom.csv
+    - assets/
+
+lang: fr
+
+website:
+  title: "EIOM 2026 | Modéliser pour comprendre et prédire"
+  description: "Trois matinées de modélisation en R: régression linéaire, régression logistique et apprentissage automatique."
+  site-url: "https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/"
+  repo-url: "https://github.com/AurelienNicosiaULaval/eiom-2026-modelisation"
+  repo-actions: [source, issue]
+  open-graph: true
+  favicon: assets/favicon.svg
+  navbar:
+    pinned: true
+    left:
+      - text: "Accueil"
+        href: index.qmd
+      - text: "Parcours"
+        href: programme.qmd
+      - text: "Jour 1"
+        menu:
+          - text: "Vue d'ensemble"
+            href: jour1/index.qmd
+          - text: "Présentation"
+            href: jour1/slides.qmd
+          - text: "Tutoriel"
+            href: jour1/tutoriel.qmd
+          - text: "Pratique"
+            href: jour1/pratique.qmd
+      - text: "Jour 2"
+        menu:
+          - text: "Vue d'ensemble"
+            href: jour2/index.qmd
+          - text: "Présentation"
+            href: jour2/slides.qmd
+          - text: "Tutoriel"
+            href: jour2/tutoriel.qmd
+          - text: "Pratique"
+            href: jour2/pratique.qmd
+      - text: "Jour 3"
+        menu:
+          - text: "Vue d'ensemble"
+            href: jour3/index.qmd
+          - text: "Présentation"
+            href: jour3/slides.qmd
+          - text: "Tutoriel"
+            href: jour3/tutoriel.qmd
+          - text: "Défi modèles"
+            href: jour3/pratique.qmd
+      - text: "Projet final"
+        href: projet-integrateur.qmd
+    right:
+      - text: "Diagnostic"
+        href: diagnostic.qmd
+      - text: "Préparation"
+        href: preparation.qmd
+  page-footer:
+    left: "Aurélien Nicosia | Université Laval"
+    right: "EIOM 2026 | 26 au 28 août 2026"
+
+bibliography: references.bib
+csl: assets/apa.csl
+
+format:
+  html:
+    theme: styles/theme.scss
+    css: styles/custom.css
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: wrap
+    smooth-scroll: true
+    anchor-sections: true
+    link-external-newwindow: true
+
+execute:
+  freeze: auto
+  echo: true
+  warning: false
+  message: false
+  error: false

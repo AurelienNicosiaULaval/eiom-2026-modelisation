@@ -1,0 +1,105 @@
+# Run lightweight structural checks before rendering or publication.
+
+library(readr)
+library(stringr)
+library(dplyr)
+
+required_files <- c(
+  "_quarto.yml",
+  "index.qmd",
+  "programme.qmd",
+  "diagnostic.qmd",
+  "preparation.qmd",
+  "ressources.qmd",
+  "data/bibliotheques_quebec_2024.csv",
+  "data/requetes_311_montreal_2024_eiom.csv",
+  "jour1/slides.qmd",
+  "jour1/tutoriel.qmd",
+  "jour1/pratique.qmd",
+  "jour2/slides.qmd",
+  "jour2/tutoriel.qmd",
+  "jour2/pratique.qmd",
+  "jour3/slides.qmd",
+  "jour3/tutoriel.qmd",
+  "jour3/pratique.qmd",
+  "projet-integrateur.qmd"
+)
+
+private_files <- c(
+  "instructeur/guide-animation.qmd",
+  "instructeur/checklist-logistique.qmd",
+  "instructeur/provenance-reutilisation.qmd",
+  "instructeur/corriges/jour1.qmd",
+  "instructeur/corriges/jour2.qmd",
+  "instructeur/corriges/jour3.qmd"
+)
+
+missing_files <- required_files[!file.exists(required_files)]
+if (length(missing_files) > 0L) {
+  stop("Fichiers requis absents: ", paste(missing_files, collapse = ", "), call. = FALSE)
+}
+
+if (dir.exists("instructeur")) {
+  missing_private_files <- private_files[!file.exists(private_files)]
+  if (length(missing_private_files) > 0L) {
+    stop(
+      "Fichiers privés attendus absents: ",
+      paste(missing_private_files, collapse = ", "),
+      call. = FALSE
+    )
+  }
+}
+
+qmd_files <- list.files(".", pattern = "\\.qmd$", recursive = TRUE, full.names = TRUE)
+
+missing_embed <- qmd_files[!vapply(
+  qmd_files,
+  function(path) any(str_detect(readLines(path, warn = FALSE), "embed-resources:\\s*true")),
+  logical(1)
+)]
+if (length(missing_embed) > 0L) {
+  stop("embed-resources: true absent de: ", paste(missing_embed, collapse = ", "), call. = FALSE)
+}
+
+text_files <- list.files(
+  ".",
+  pattern = "\\.(qmd|md|R|yml|yaml|scss|css|js)$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+text_files <- text_files[!str_detect(text_files, "(^|/)(_site|tmp)/")]
+text_files <- text_files[!str_detect(
+  text_files,
+  "(^|/)(\\.quarto|_freeze|site_libs)/"
+)]
+has_em_dash <- vapply(
+  text_files,
+  function(path) any(str_detect(
+    readLines(path, warn = FALSE),
+    fixed(intToUtf8(0x2014))
+  )),
+  logical(1)
+)
+if (any(has_em_dash)) {
+  stop("Tiret cadratin détecté dans: ", paste(text_files[has_em_dash], collapse = ", "), call. = FALSE)
+}
+
+bibliotheques <- read_csv("data/bibliotheques_quebec_2024.csv", show_col_types = FALSE)
+requetes_311 <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+)
+
+stopifnot(nrow(bibliotheques) == 188L)
+stopifnot(nrow(requetes_311) == 18000L)
+stopifnot(n_distinct(requetes_311$identifiant_requete) == 18000L)
+stopifnot(
+  all(
+    c("non_terminee_7_jours", "terminee_7_jours") %in%
+      unique(requetes_311$issue_7_jours)
+  )
+)
+stopifnot(min(requetes_311$date_creation) >= as.Date("2024-01-01"))
+stopifnot(max(requetes_311$date_creation) < as.Date("2025-01-01"))
+
+message("Validation structurelle réussie.")

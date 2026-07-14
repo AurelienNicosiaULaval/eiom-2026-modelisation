@@ -1,0 +1,58 @@
+/*-- scss:defaults --*/
+$presentation-heading-color: #102a43;
+$presentation-heading-font: "Avenir Next", "Segoe UI", sans-serif;
+$presentation-font-size-root: 34px;
+$body-bg: #fbfaf7;
+$body-color: #17212b;
+$link-color: #b5222e;
+$code-block-bg: #eef3f7;
+
+/*-- scss:rules --*/
+.reveal .slides section {
+  text-align: left;
+}
+
+.reveal .slides section.title-slide {
+  color: #ffffff;
+  background: linear-gradient(135deg, #102a43 0%, #173f5f 70%, #b5222e 160%);
+}
+
+.reveal .slides section.title-slide h1,
+.reveal .slides section.title-slide h2,
+.reveal .slides section.title-slide p {
+  color: #ffffff;
+}
+
+.reveal h1,
+.reveal h2 {
+  letter-spacing: -0.025em;
+}
+
+.reveal .takeaway {
+  padding: 0.9rem 1.1rem;
+  border-left: 0.35rem solid #ffcb77;
+  background: #f7f4ef;
+}
+
+.reveal .question-slide {
+  display: grid;
+  place-content: center;
+  min-height: 520px;
+  text-align: center;
+}
+
+.reveal .question-slide h2 {
+  font-size: 2.2em;
+}
+
+.reveal .footer {
+  color: #52606d;
+}
+
+.reveal table {
+  font-size: 0.8em;
+}
+
+.reveal pre code {
+  max-height: 560px;
+}

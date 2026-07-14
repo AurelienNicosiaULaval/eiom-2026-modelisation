@@ -1,0 +1,79 @@
+---
+title: "Parcours des trois matinées"
+subtitle: "Un scénario actif, cumulatif et adaptable"
+format:
+  html:
+    embed-resources: true
+---
+
+## Hypothèse de conception
+
+Le déroulement ci-dessous suppose une matinée de 3 h 30, incluant une pause de 15 minutes. Les horaires absolus pourront être ajustés lorsque l'EIOM aura confirmé les heures de début et de fin. La progression pédagogique et les durées relatives resteront valides.
+
+## Résultat attendu
+
+Au terme du parcours, chaque personne aura produit:
+
+1. un modèle linéaire interprété et diagnostiqué;
+2. un modèle logistique évalué au-delà de l'exactitude;
+3. une comparaison équitable entre trois approches prédictives;
+4. une fiche de modèle d'une page qui expose objectif, données, validation, résultats et limites.
+
+## Mercredi 26 août: régression linéaire
+
+| Temps relatif | Activité | Production |
+|---|---|---|
+| 0:00 à 0:15 | Défi d'ouverture: que raconte une droite? | Hypothèses individuelles |
+| 0:15 à 0:40 | Modèle, association, prédiction et causalité | Carte conceptuelle |
+| 0:40 à 1:10 | Démonstration en direct sur les bibliothèques | Premier modèle |
+| 1:10 à 1:30 | Coefficients, intervalles et prédictions | Interprétation rédigée |
+| 1:30 à 1:45 | Pause | |
+| 1:45 à 2:15 | Clinique de diagnostics | Verdict argumenté |
+| 2:15 à 3:00 | Pratique en équipes | Audit d'un modèle |
+| 3:00 à 3:25 | Défi: note de service en 5 phrases | Recommandation prudente |
+| 3:25 à 3:30 | Billet de sortie | Une idée, une question |
+
+## Jeudi 27 août: régression logistique
+
+| Temps relatif | Activité | Production |
+|---|---|---|
+| 0:00 à 0:15 | Enchère de probabilités | Seuils intuitifs |
+| 0:15 à 0:45 | Probabilité, cote et logit | Traduction entre trois échelles |
+| 0:45 à 1:15 | Démonstration sur les requêtes 311 | Modèle logistique |
+| 1:15 à 1:30 | Prévalence et matrice de confusion | Baseline explicite |
+| 1:30 à 1:45 | Pause | |
+| 1:45 à 2:20 | ROC, rappel-précision, Brier et calibration | Tableau de performance |
+| 2:20 à 3:05 | Mission en équipes: choisir un seuil | Décision justifiée |
+| 3:05 à 3:25 | Construire une fiche de modèle | Première version |
+| 3:25 à 3:30 | Billet de sortie | Une décision, une limite |
+
+## Vendredi 28 août: modèles d'apprentissage automatique
+
+| Temps relatif | Activité | Production |
+|---|---|---|
+| 0:00 à 0:15 | Rencontres éclair de modèles | Hypothèses de choix |
+| 0:15 à 0:40 | Temps, dérive et fuite d'information | Schéma entraînement-validation-test |
+| 0:40 à 1:15 | Arbre de décision en direct | Arbre élagué |
+| 1:15 à 1:30 | Expérience de surajustement | Courbe complexité-erreur |
+| 1:30 à 1:45 | Pause | |
+| 1:45 à 2:20 | Forêt aléatoire et validation temporelle | Mesures hors échantillon |
+| 2:20 à 3:05 | Défi modèles: logistique, arbre ou forêt | Classement argumenté |
+| 3:05 à 3:25 | Conseil de décision | Fiche de modèle finale |
+| 3:25 à 3:30 | Clôture | Prochaine action personnelle |
+
+## Rythme de chaque bloc
+
+Chaque notion suit la même boucle:
+
+1. prédire intuitivement;
+2. observer une démonstration courte;
+3. modifier le code;
+4. interpréter le résultat;
+5. défendre une décision;
+6. nommer une limite.
+
+Cette structure réduit le temps de présentation continue et crée un point d'activité toutes les 15 à 25 minutes.
+
+## Ce qui reste volontairement en extension
+
+L'analyse en composantes principales, les k plus proches voisins, le regroupement par k-moyennes et les modèles plus complexes sont disponibles comme pistes d'approfondissement. La matinée principale du vendredi privilégie le processus de validation et la comparaison de modèles, car ces compétences se transfèrent à toutes les familles d'algorithmes [@james2021isl; @kuhn2022tmwr].

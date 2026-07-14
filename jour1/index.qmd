@@ -1,0 +1,48 @@
+---
+title: "Jour 1: comprendre une relation"
+subtitle: "Régression linéaire multiple et diagnostics"
+format:
+  html:
+    embed-resources: true
+---
+
+## Question directrice
+
+Comment la fréquentation totale varie-t-elle avec la population desservie, les prêts et les dépenses des bibliothèques publiques du Québec, et jusqu'où peut-on interpréter le modèle?
+
+## Objectifs
+
+À la fin de la matinée, vous pourrez:
+
+1. définir une réponse continue et des prédicteurs pertinents;
+2. ajuster une régression linéaire multiple en R;
+3. interpréter un coefficient conditionnel et un intervalle;
+4. diagnostiquer forme fonctionnelle, variance, résidus et influence;
+5. distinguer association, prédiction et causalité;
+6. formuler une conclusion proportionnée aux données.
+
+## Matériel
+
+<div class="resource-grid">
+<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Le fil narratif pour la démonstration et les échanges.</span></a>
+<a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Code exécutable, résultats et interprétations.</span></a>
+<a class="resource-card" href="pratique.html"><span class="card-title">Clinique de modèle</span><span class="card-copy">Quatre stations de diagnostic à réaliser en équipe.</span></a>
+</div>
+
+## Production de la matinée
+
+Une note de service de cinq phrases:
+
+1. la question analysée;
+2. l'unité statistique;
+3. le principal résultat conditionnel;
+4. un diagnostic qui modifie ou nuance l'interprétation;
+5. une limite qui interdit une conclusion causale.
+
+## Deux niveaux de parcours
+
+Le parcours essentiel couvre l'ajustement, l'interprétation et les diagnostics de résidus, de colinéarité et d'influence. Les extensions ajoutent les interactions et la prédiction sur l'échelle originale.
+
+## Données
+
+Une ligne représente une bibliothèque publique ou un centre régional dans la ressource 2024. Les données sont administratives et déclarées. Elles ne mesurent pas directement la qualité, la satisfaction ou l'accessibilité du service [@banq2025bibliotheques].

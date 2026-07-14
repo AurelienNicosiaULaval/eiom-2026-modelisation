@@ -1,0 +1,28 @@
+/*-- scss:defaults --*/
+$font-family-sans-serif: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+$headings-font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+$body-color: #17212b;
+$headings-color: #102a43;
+$link-color: #b5222e;
+$navbar-bg: #102a43;
+$navbar-fg: #ffffff;
+$navbar-hl: #ffcb77;
+$primary: #b5222e;
+$secondary: #0f7c80;
+$success: #2f855a;
+$info: #277da1;
+$warning: #f4a261;
+$danger: #c1121f;
+$code-bg: #f4f7fa;
+$code-color: #203040;
+$border-radius: 0.8rem;
+
+/*-- scss:rules --*/
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}

@@ -1,0 +1,95 @@
+---
+title: "Diagnostic de départ"
+subtitle: "Neuf questions pour cibler votre préparation"
+toc: false
+format:
+  html:
+    embed-resources: true
+---
+
+Ce diagnostic n'est pas une évaluation et n'enregistre aucune réponse. Il fonctionne entièrement dans votre navigateur.
+
+<fieldset class="diagnostic-quiz" data-category="r" data-answer="b">
+<legend>1. Que fait l'opérateur <code>|&gt;</code> en R?</legend>
+<label><input type="radio" name="q1" value="a"> Il compare deux objets.</label>
+<label><input type="radio" name="q1" value="b"> Il transmet le résultat de gauche à l'appel de fonction suivant.</label>
+<label><input type="radio" name="q1" value="c"> Il crée automatiquement un graphique.</label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="r" data-answer="c">
+<legend>2. Quelle instruction conserve seulement les lignes où <code>x</code> n'est pas manquant?</legend>
+<label><input type="radio" name="q2" value="a"> <code>select(!is.na(x))</code></label>
+<label><input type="radio" name="q2" value="b"> <code>mutate(!is.na(x))</code></label>
+<label><input type="radio" name="q2" value="c"> <code>filter(!is.na(x))</code></label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="r" data-answer="a">
+<legend>3. Quel objet contient les lignes utilisées pour ajuster un modèle après <code>initial_split()</code>?</legend>
+<label><input type="radio" name="q3" value="a"> <code>training(split)</code></label>
+<label><input type="radio" name="q3" value="b"> <code>testing(split)</code></label>
+<label><input type="radio" name="q3" value="c"> <code>predict(split)</code></label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="modeles" data-answer="c">
+<legend>4. Dans une régression multiple, un coefficient décrit généralement...</legend>
+<label><input type="radio" name="q4" value="a"> une preuve de causalité.</label>
+<label><input type="radio" name="q4" value="b"> la corrélation brute entre deux variables.</label>
+<label><input type="radio" name="q4" value="c"> une différence moyenne attendue, les autres variables du modèle étant maintenues constantes.</label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="modeles" data-answer="b">
+<legend>5. Dans une régression logistique, <code>exp(beta)</code> correspond à...</legend>
+<label><input type="radio" name="q5" value="a"> une différence de probabilités.</label>
+<label><input type="radio" name="q5" value="b"> un rapport de cotes.</label>
+<label><input type="radio" name="q5" value="c"> une exactitude.</label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="modeles" data-answer="a">
+<legend>6. Un résidu est...</legend>
+<label><input type="radio" name="q6" value="a"> la différence entre une valeur observée et une valeur ajustée.</label>
+<label><input type="radio" name="q6" value="b"> un coefficient non significatif.</label>
+<label><input type="radio" name="q6" value="c"> une observation automatiquement erronée.</label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="validation" data-answer="c">
+<legend>7. Pourquoi ne choisit-on pas un modèle avec sa performance sur les données d'entraînement?</legend>
+<label><input type="radio" name="q7" value="a"> Parce que R interdit ce calcul.</label>
+<label><input type="radio" name="q7" value="b"> Parce que cette performance est toujours nulle.</label>
+<label><input type="radio" name="q7" value="c"> Parce qu'elle peut être optimiste et favoriser le surajustement.</label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="validation" data-answer="b">
+<legend>8. À quoi sert principalement une validation hors échantillon?</legend>
+<label><input type="radio" name="q8" value="a"> À supprimer les valeurs manquantes.</label>
+<label><input type="radio" name="q8" value="b"> À estimer une performance sur des données non utilisées pour ajuster le modèle et à comparer des choix.</label>
+<label><input type="radio" name="q8" value="c"> À prouver qu'un modèle est causal.</label>
+</fieldset>
+
+<fieldset class="diagnostic-quiz" data-category="validation" data-answer="a">
+<legend>9. Quel exemple constitue une fuite d'information?</legend>
+<label><input type="radio" name="q9" value="a"> Normaliser les prédicteurs avec l'ensemble complet avant la séparation train-test.</label>
+<label><input type="radio" name="q9" value="b"> Stratifier la séparation selon la classe réponse.</label>
+<label><input type="radio" name="q9" value="c"> Fixer une graine aléatoire avant l'échantillonnage.</label>
+</fieldset>
+
+<button class="quiz-submit" id="diagnostic-submit" type="button">Voir mon portrait</button>
+
+<div class="diagnostic-result" id="diagnostic-result" aria-live="polite"></div>
+
+## Réponses commentées
+
+::: {.callout-tip collapse="true"}
+## Afficher les explications
+
+1. L'opérateur transmet le résultat de gauche à l'appel suivant.
+2. `filter()` conserve des lignes selon une condition.
+3. `training()` extrait les données d'entraînement.
+4. Un coefficient multiple s'interprète conditionnellement aux autres variables incluses.
+5. L'exponentielle d'un coefficient logistique donne un rapport de cotes.
+6. Un résidu compare l'observation à l'ajustement du modèle.
+7. La performance d'entraînement peut être trop optimiste.
+8. Une validation hors échantillon estime la performance sur des observations qui n'ont pas servi à ajuster le modèle. Lorsque le temps compte, les observations de validation devraient être postérieures à celles d'entraînement.
+9. Toute transformation apprise avant la séparation peut transmettre de l'information du test vers l'entraînement.
+:::
+
+<script src="assets/diagnostic.js"></script>

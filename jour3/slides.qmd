@@ -1,0 +1,375 @@
+---
+title: "Comparer sans se raconter d'histoire"
+subtitle: "Arbres, forêts aléatoires et validation temporelle"
+author: "Aurélien Nicosia"
+format:
+  revealjs:
+    theme: [simple, ../styles/slides.scss]
+    embed-resources: true
+    slide-number: c/t
+    progress: true
+    controls: true
+    transition: fade
+    code-overflow: wrap
+    center: false
+    footer: "EIOM 2026 | Jour 3"
+execute:
+  echo: true
+  cache: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(tidymodels)
+library(rpart)
+
+theme_set(theme_minimal(base_size = 18))
+
+requetes_ml <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+) |>
+  mutate(
+    date_creation = as.Date(date_creation),
+    verite = factor(
+      issue_7_jours,
+      levels = c("non_terminee_7_jours", "terminee_7_jours")
+    )
+  ) |>
+  arrange(date_creation, identifiant_requete)
+
+date_coupure <- as.Date("2024-10-01")
+entrainement_ml <- requetes_ml |>
+  filter(date_creation < date_coupure)
+test_ml <- requetes_ml |>
+  filter(date_creation >= date_coupure)
+
+plis_temporels <- sliding_period(
+  entrainement_ml,
+  index = date_creation,
+  period = "month",
+  lookback = 3,
+  assess_stop = 1,
+  complete = TRUE,
+  step = 1
+)
+
+recette_ml <- recipe(
+  verite ~ jour_semaine + plage_horaire + activite +
+    type_lieu + arrondissement + provenance,
+  data = entrainement_ml
+) |>
+  step_novel(all_nominal_predictors(), new_level = "Nouveau") |>
+  step_unknown(all_nominal_predictors(), new_level = "Non précisé") |>
+  step_other(activite, threshold = 0.01, other = "Autres activités") |>
+  step_other(type_lieu, threshold = 0.01, other = "Autres lieux") |>
+  step_other(arrondissement, threshold = 0.005, other = "Autres territoires") |>
+  step_other(provenance, threshold = 0.005, other = "Autres canaux") |>
+  step_zv(all_predictors())
+
+modele_logistique <- logistic_reg() |>
+  set_engine("glm")
+
+modele_arbre <- decision_tree(
+  cost_complexity = 0.001,
+  tree_depth = 10,
+  min_n = 30
+) |>
+  set_engine("rpart") |>
+  set_mode("classification")
+
+modele_foret <- rand_forest(
+  mtry = 4,
+  min_n = 30,
+  trees = 200
+) |>
+  set_engine("ranger", importance = "permutation", num.threads = 2) |>
+  set_mode("classification")
+
+modeles <- list(
+  logistique = modele_logistique,
+  arbre = modele_arbre,
+  foret = modele_foret
+)
+
+ensemble_workflows <- workflow_set(
+  preproc = list(pretraitement = recette_ml),
+  models = modeles
+)
+
+mesures_ml <- metric_set(roc_auc, pr_auc, brier_class)
+
+set.seed(20260828)
+resultats_validation <- workflow_map(
+  ensemble_workflows,
+  "fit_resamples",
+  resamples = plis_temporels,
+  metrics = mesures_ml,
+  control = control_resamples(save_workflow = TRUE)
+)
+
+tableau_validation <- collect_metrics(resultats_validation) |>
+  select(wflow_id, .metric, mean, std_err)
+```
+
+## À la fin de la matinée
+
+Vous saurez comparer des modèles flexibles sans utiliser le futur pour choisir le gagnant.
+
+::: {.notes}
+2 minutes. Rappeler que la fiche finale doit inclure une règle de surveillance.
+:::
+
+::: {.question-slide}
+## Plus complexe signifie-t-il plus intelligent?
+:::
+
+::: {.notes}
+Faire positionner les personnes dans la salle: oui, non, cela dépend. Demander un argument à chaque groupe.
+:::
+
+## Trois candidats
+
+| Modèle | Force | Fragilité |
+|---|---|---|
+| Régression logistique | Structure globale inspectable | Formes à spécifier |
+| Arbre | Règles et interactions lisibles | Instabilité |
+| Forêt aléatoire | Flexibilité et agrégation | Interprétation plus indirecte |
+
+Le mandat détermine ce qui compte comme une force.
+
+## L'arbre pose une suite de questions
+
+```{mermaid}
+flowchart TD
+  A["Toutes les requêtes"] --> B{"Type d'activité?"}
+  B -->|"Groupe 1"| C{"Arrondissement?"}
+  B -->|"Groupe 2"| D{"Canal?"}
+  C --> E["Probabilité terminale"]
+  C --> F["Probabilité terminale"]
+  D --> G["Probabilité terminale"]
+  D --> H["Probabilité terminale"]
+```
+
+Chaque coupure cherche à rendre les groupes plus homogènes par rapport à la cible.
+
+## Un arbre profond peut mémoriser
+
+- Peu profond: biais plus élevé, variance plus faible
+- Très profond: biais plus faible, variance plus élevée
+- Élagage et `min_n`: contrôles de complexité
+
+<div class="takeaway">L'erreur d'entraînement récompense souvent une complexité qui échoue dans le futur.</div>
+
+## La forêt perturbe et agrège
+
+Pour chaque arbre:
+
+1. échantillonner les observations;
+2. proposer un sous-ensemble de prédicteurs à chaque coupure;
+3. construire un arbre;
+4. agréger les probabilités de nombreux arbres.
+
+La diversité des arbres réduit souvent l'instabilité d'un arbre unique [@breiman2001random].
+
+## Le budget de données
+
+```{mermaid}
+flowchart LR
+  A["Passé disponible"] --> B["Fenêtres d'entraînement"]
+  B --> C["Mois de validation"]
+  C --> D["Choix du modèle"]
+  D --> E["Test futur fermé"]
+```
+
+Chaque donnée ne peut pas servir à la fois à régler, choisir et confirmer sans optimisme.
+
+## Cinq répétitions de la question « demain? »
+
+```{r}
+#| echo: false
+tibble(
+  pli = plis_temporels$id,
+  entrainement = map_chr(
+    plis_temporels$splits,
+    ~ paste(range(analysis(.x)$date_creation), collapse = " au ")
+  ),
+  validation = map_chr(
+    plis_temporels$splits,
+    ~ paste(range(assessment(.x)$date_creation), collapse = " au ")
+  )
+)
+```
+
+Chaque validation est postérieure aux observations qui ont entraîné le modèle.
+
+## Pourquoi pas cinq plis aléatoires?
+
+Un pli aléatoire mélange janvier et août. Il évalue la capacité à prédire une ligne cachée parmi des lignes contemporaines.
+
+Une fenêtre temporelle évalue la capacité à prédire une période ultérieure.
+
+Les deux protocoles sont valides pour des questions différentes.
+
+## Une comparaison équitable
+
+Les trois candidats reçoivent:
+
+- la même cible;
+- les mêmes variables disponibles à la création;
+- le même prétraitement;
+- les mêmes fenêtres;
+- les mêmes mesures.
+
+<div class="takeaway">Changer les données en même temps que l'algorithme empêche d'attribuer le gain au modèle.</div>
+
+## Résultats moyens en validation temporelle
+
+```{r}
+#| echo: false
+tableau_validation
+```
+
+::: {.question-slide}
+## Quel modèle choisissez-vous avant de voir le test?
+:::
+
+## La moyenne ne suffit pas
+
+```{r}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 5
+collect_metrics(resultats_validation, summarize = FALSE) |>
+  filter(.metric == "roc_auc") |>
+  mutate(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    )
+  ) |>
+  ggplot(aes(id, .estimate, color = modele, group = modele)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  labs(x = "Fenêtre", y = "Aire ROC", color = "Modèle")
+```
+
+Un modèle stable peut être préférable à un gagnant fragile.
+
+## Défi modèles
+
+Chaque équipe reçoit un mandat:
+
+1. communication scientifique;
+2. tri expérimental;
+3. règle inspectable;
+4. infrastructure minimale.
+
+Classez les modèles, écrivez votre choix et fermez le tableau avant l'ouverture du test.
+
+::: {.notes}
+20 minutes. Utiliser la pratique. Exiger une décision écrite avant de montrer le test.
+:::
+
+## Le test futur n'est ouvert qu'une fois
+
+```{r}
+#| echo: false
+workflows_ajustes <- map(
+  modeles,
+  ~ workflow() |>
+    add_recipe(recette_ml) |>
+    add_model(.x) |>
+    fit(data = entrainement_ml)
+)
+
+predictions_finales <- imap_dfr(
+  workflows_ajustes,
+  function(ajustement, nom_modele) {
+    bind_cols(
+      test_ml |> select(verite),
+      predict(ajustement, new_data = test_ml, type = "prob")
+    ) |>
+      mutate(modele = nom_modele)
+  }
+)
+
+resultats_test <- predictions_finales |>
+  group_by(modele) |>
+  mesures_ml(
+    truth = verite,
+    .pred_non_terminee_7_jours,
+    event_level = "first"
+  )
+
+resultats_test
+```
+
+## Si le test déçoit
+
+Vous pouvez:
+
+1. documenter l'écart;
+2. formuler une nouvelle hypothèse;
+3. modifier le pipeline;
+4. attendre une nouvelle période indépendante.
+
+Vous ne pouvez pas réutiliser silencieusement le même test comme validation et comme confirmation.
+
+## L'importance n'est pas une cause
+
+```{r}
+#| echo: false
+#| fig-width: 9
+#| fig-height: 5
+importance_foret <- extract_fit_engine(
+  workflows_ajustes$foret
+)$variable.importance |>
+  enframe(name = "variable", value = "importance") |>
+  arrange(desc(importance))
+
+importance_foret |>
+  slice_head(n = 10) |>
+  ggplot(aes(importance, fct_reorder(variable, importance))) +
+  geom_col(fill = "#0f7c80") +
+  labs(x = "Importance par permutation", y = NULL)
+```
+
+Une variable peut aider à prédire parce qu'elle représente la composition, le processus ou une mesure indirecte. Cela n'en fait pas un levier causal.
+
+## Le conseil de décision
+
+Votre recommandation finale doit répondre à six questions:
+
+1. Quel est le mandat?
+2. Quel modèle gagne selon les mesures pertinentes?
+3. Est-il stable dans le temps?
+4. Quel compromis acceptez-vous?
+5. Comment surveillerez-vous la calibration?
+6. Quand retirerez-vous le modèle?
+
+## La fiche de modèle finale
+
+1. Question et population cible
+2. Moment de prédiction et variables interdites
+3. Périodes d'entraînement, de validation et de test
+4. Comparaison et stabilité
+5. Décision et seuil
+6. Limites, surveillance et condition de retrait
+
+## Ce que nous emportons
+
+- Un modèle flexible peut surajuster.
+- Le futur doit rester hors du choix initial.
+- Tous les modèles doivent recevoir la même information.
+- La moyenne et la stabilité répondent à des questions complémentaires.
+- L'importance prédictive n'est pas une importance causale.
+- Le meilleur modèle dépend du mandat et du coût de surveillance.
+
+::: {.question-slide}
+## Quel résultat vous ferait retirer un modèle déjà utilisé?
+:::

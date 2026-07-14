@@ -1,0 +1,73 @@
+name: Publier le site Quarto
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extraire le dépôt
+        uses: actions/checkout@v7
+
+      - name: Installer Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Installer R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Installer les paquets R
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::broom
+            any::car
+            any::janitor
+            any::knitr
+            any::patchwork
+            any::performance
+            any::ranger
+            any::rpart
+            any::scales
+            any::tidymodels
+            any::tidyverse
+            any::xml2
+
+      - name: Valider le projet
+        run: Rscript scripts/valider_projet.R
+
+      - name: Rendre le site
+        run: quarto render
+
+      - name: Vérifier les liens locaux
+        run: Rscript scripts/verifier_site.R
+
+      - name: Configurer GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Téléverser le site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Déployer GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,58 @@
+---
+pagetitle: "Accueil"
+page-layout: full
+toc: false
+format:
+  html:
+    embed-resources: true
+    anchor-sections: false
+---
+
+::: {.hero-eiom}
+<p class="hero-kicker">EIOM 2026 | Science des données</p>
+
+# Modéliser pour comprendre et prédire
+
+<p class="hero-lead">Trois matinées actives pour construire, diagnostiquer et comparer des modèles en R, à partir de données publiques québécoises.</p>
+
+<div class="hero-meta">
+<span>26 au 28 août 2026</span>
+<span>Régression linéaire</span>
+<span>Régression logistique</span>
+<span>Apprentissage automatique</span>
+</div>
+:::
+
+## Votre mission
+
+À la fin des trois matinées, vous pourrez transformer une question de recherche en une stratégie de modélisation reproductible, choisir une mesure de performance adaptée et défendre un modèle sans confondre association, prédiction et causalité.
+
+<div class="big-question">Un modèle utile n'est pas seulement celui qui prédit bien. Il doit répondre à la bonne question, être évalué sur des données appropriées et rester défendable dans son contexte.</div>
+
+## À qui s'adresse le parcours?
+
+L'EIOM accueille des personnes étudiantes aux cycles supérieurs, des stagiaires postdoctoraux, des professionnelles et professionnels de recherche ainsi que des personnes issues de plusieurs disciplines. Le parcours suppose une connaissance de base de R, sans exiger une programmation avancée [@eiom2026; @eiomfaq2026].
+
+Chaque matinée propose donc un trajet essentiel et des prolongements pour les personnes plus expérimentées. Les exemples québécois ont été choisis pour que la question scientifique reste accessible sans expertise préalable en services municipaux ou en bibliothéconomie.
+
+## Trois matinées, une progression
+
+<div class="morning-grid">
+<a class="morning-card" href="jour1/index.html"><span class="day-chip">Mercredi</span><span class="card-title">Comprendre une relation</span><span class="card-copy">Régression linéaire multiple, interprétation, incertitude et diagnostics.</span></a>
+<a class="morning-card" href="jour2/index.html"><span class="day-chip">Jeudi</span><span class="card-title">Passer d'une probabilité à une décision</span><span class="card-copy">Régression logistique, seuils, discrimination, calibration et coûts d'erreur.</span></a>
+<a class="morning-card" href="jour3/index.html"><span class="day-chip">Vendredi</span><span class="card-title">Comparer sans se raconter d'histoire</span><span class="card-copy">Arbres, forêts aléatoires, validation temporelle et choix responsable d'un modèle.</span></a>
+</div>
+
+## Commencer ici
+
+<div class="resource-grid">
+<a class="resource-card" href="diagnostic.html"><span class="card-title">Diagnostic de départ</span><span class="card-copy">Neuf questions, sans collecte de données, pour cibler votre préparation.</span></a>
+<a class="resource-card" href="preparation.html"><span class="card-title">Préparer votre poste</span><span class="card-copy">R, RStudio, paquets, données et test de fonctionnement.</span></a>
+<a class="resource-card" href="programme.html"><span class="card-title">Voir le parcours</span><span class="card-copy">Objectifs, rythme, activités et productions attendues.</span></a>
+</div>
+
+## Données et posture
+
+Nous travaillerons avec les statistiques 2024 des bibliothèques publiques du Québec et les demandes de services citoyennes 311 de Montréal créées en 2024 [@banq2025bibliotheques; @montreal2026requete311]. Les modèles seront présentés comme des outils descriptifs ou prédictifs. Ils ne suffisent pas, à eux seuls, à établir une relation causale.
+
+La sixième édition de l'EIOM se déroule en présence à l'Université Laval du 24 au 28 août 2026. Le parcours officiel vise un niveau intermédiaire à avancé et repose sur R [@eiom2026].

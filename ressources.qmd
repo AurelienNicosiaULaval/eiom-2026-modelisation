@@ -1,0 +1,34 @@
+---
+title: "Ressources et références"
+format:
+  html:
+    embed-resources: true
+---
+
+## Aide-mémoire du parcours
+
+| Question | Réflexe |
+|---|---|
+| Veut-on expliquer, prédire ou décider? | Écrire l'objectif avant de choisir le modèle. |
+| La réponse est-elle continue ou binaire? | Choisir une famille de modèles compatible. |
+| Les données futures ressemblent-elles aux données observées? | Définir la population cible et le mécanisme de collecte. |
+| Une transformation utilise-t-elle la réponse ou tout le jeu? | L'apprendre dans les données d'entraînement seulement. |
+| Les observations sont-elles ordonnées dans le temps? | Valider sur une période postérieure à l'entraînement. |
+| Quelle erreur coûte le plus cher? | Choisir les métriques et le seuil selon le contexte. |
+| Le modèle est-il calibré? | Comparer probabilités prédites et fréquences observées. |
+| L'amélioration est-elle utile? | Comparer performance, stabilité, complexité et interprétabilité. |
+
+## Sources pédagogiques
+
+Le parcours s'appuie sur la progression de l'apprentissage statistique décrite par James et ses collègues [@james2021isl], ainsi que sur le cadre reproductible de `tidymodels` présenté par Kuhn et Silge [@kuhn2022tmwr]. La forêt aléatoire est introduite dans le sens de Breiman [@breiman2001random].
+
+Pour l'évaluation des modèles binaires, la courbe ROC est présentée comme une mesure de discrimination sur l'ensemble des seuils [@fawcett2006roc]. La calibration est traitée séparément, conformément à la hiérarchie proposée par Van Calster et ses collègues [@vancalster2019calibration].
+
+## Sources de données
+
+Les données de bibliothèques proviennent de l'Enquête annuelle sur les bibliothèques publiques du Québec, ressource 2024 [@banq2025bibliotheques]. Les demandes de services citoyennes proviennent du système 311 de la Ville de Montréal [@montreal2026requete311]. Le risque d'interprétation trompeuse lorsque plusieurs ratios partagent un même composant est discuté par Kronmal [@kronmal1993ratio].
+
+## Références
+
+::: {#refs}
+:::

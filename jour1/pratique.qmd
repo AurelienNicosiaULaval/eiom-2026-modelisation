@@ -1,0 +1,165 @@
+---
+title: "Pratique: clinique de modèle"
+subtitle: "Quatre stations, un verdict"
+format:
+  html:
+    embed-resources: true
+---
+
+## Consigne
+
+Formez des équipes de trois ou quatre personnes. Chaque équipe commence à une station, puis change après 10 à 12 minutes. Conservez une phrase de verdict par station.
+
+## Mise en route
+
+```{r}
+#| eval: false
+# Load libraries
+library(tidyverse)
+library(broom)
+library(performance)
+
+# Import data
+bibliotheques <- read_csv(
+  "data/bibliotheques_quebec_2024.csv",
+  show_col_types = FALSE
+)
+```
+
+## Station 1: unité et valeurs manquantes
+
+Objectif: déterminer quelles lignes peuvent entrer dans le modèle et ce que représente une ligne.
+
+```{r}
+#| eval: false
+bibliotheques |>
+  summarise(
+    across(
+      c(
+        visites_total,
+        prets_total,
+        depenses_fonctionnement_total,
+        population_desservie
+      ),
+      ~ sum(is.na(___))
+    )
+  )
+```
+
+Questions:
+
+1. Les valeurs manquantes semblent-elles toucher la réponse, les prédicteurs ou les deux?
+2. Quelle exclusion est nécessaire pour utiliser la population desservie sur une échelle logarithmique?
+3. Quelle population votre modèle décrira-t-il après l'exclusion?
+
+::: {.callout-tip collapse="true"}
+## Indice
+
+Dans `across()`, `.x` représente la colonne courante.
+:::
+
+## Station 2: forme fonctionnelle
+
+Objectif: comparer visuellement l'échelle originale et l'échelle logarithmique.
+
+```{r}
+#| eval: false
+bibliotheques_modele <- bibliotheques |>
+  filter(
+    !is.na(visites_total),
+    !is.na(prets_total),
+    !is.na(depenses_fonctionnement_total),
+    population_desservie > 0
+  ) |>
+  mutate(
+    log_visites = ___,
+    log_population = ___,
+    log_prets = ___,
+    log_depenses = ___
+  )
+
+bibliotheques_modele |>
+  ggplot(aes(log_prets, log_visites)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+Questions:
+
+1. La transformation réduit-elle l'asymétrie et l'influence visuelle des valeurs élevées?
+2. Que devient l'interprétation d'un coefficient lorsque la réponse est transformée?
+3. Pourquoi le modèle principal utilise-t-il des volumes plutôt que plusieurs ratios partageant le même dénominateur?
+
+## Station 3: résidus et influence
+
+Objectif: identifier une structure résiduelle et une observation influente.
+
+```{r}
+#| eval: false
+modele <- lm(
+  log_visites ~
+    log_population +
+    log_prets +
+    log_depenses,
+  data = bibliotheques_modele
+)
+
+diagnostics <- augment(modele, data = bibliotheques_modele)
+
+diagnostics |>
+  ggplot(aes(___, ___)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+diagnostics |>
+  arrange(desc(___)) |>
+  select(bibliotheque, .std.resid, .hat, .cooksd) |>
+  slice_head(n = 5)
+
+check_collinearity(modele)
+```
+
+Questions:
+
+1. Voyez-vous une courbure ou une dispersion changeante?
+2. Quelle observation a la plus grande distance de Cook?
+3. Les prédicteurs semblent-ils assez distincts pour isoler facilement leurs coefficients?
+4. Que feriez-vous avant de retirer une observation influente?
+
+::: {.callout-tip collapse="true"}
+## Indice
+
+Utilisez `.fitted`, `.std.resid` et `.cooksd`.
+:::
+
+## Station 4: interprétation responsable
+
+Objectif: corriger une conclusion trop forte.
+
+Énoncé à auditer:
+
+> Augmenter les dépenses de fonctionnement cause une hausse des visites totales. Le modèle prouve donc qu'une municipalité devrait accroître son budget.
+
+Réécrivez cet énoncé en trois phrases:
+
+1. une phrase descriptive ou associative compatible avec le modèle;
+2. une phrase sur l'incertitude ou les diagnostics;
+3. une phrase sur les données nécessaires pour soutenir une conclusion causale.
+
+## Débrief collectif
+
+Chaque équipe dispose de 90 secondes:
+
+1. verdict: utilisable, utilisable avec réserves ou à revoir;
+2. preuve: un résultat ou un graphique;
+3. limite: une information absente;
+4. prochaine action: une vérification ou une nouvelle donnée.
+
+## Billet de sortie
+
+Complétez individuellement:
+
+- Le diagnostic qui a le plus changé mon interprétation est...
+- Une phrase que je ne devrais plus écrire à partir d'une régression est...
+- La question que je garde pour demain est...

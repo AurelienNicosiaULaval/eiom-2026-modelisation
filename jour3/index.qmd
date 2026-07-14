@@ -1,0 +1,47 @@
+---
+title: "Jour 3: comparer sans se raconter d'histoire"
+subtitle: "Arbres, forêts aléatoires et validation temporelle"
+format:
+  html:
+    embed-resources: true
+---
+
+## Question directrice
+
+Un modèle plus flexible améliore-t-il réellement la prédiction des demandes 311 futures, et le gain éventuel justifie-t-il sa complexité?
+
+## Objectifs
+
+À la fin de la matinée, vous pourrez:
+
+1. expliquer la logique d'un arbre et d'une forêt aléatoire;
+2. reconnaître le surajustement;
+3. réserver un test futur et construire des fenêtres de validation temporelle;
+4. appliquer le même prétraitement et les mêmes mesures à plusieurs modèles;
+5. comparer performance moyenne et stabilité dans le temps;
+6. interpréter prudemment une importance de variable;
+7. recommander un modèle selon un mandat explicite.
+
+## Matériel
+
+<div class="resource-grid">
+<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Flexibilité, surajustement et validation dans le temps.</span></a>
+<a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel comparatif</span><span class="card-copy">Trois modèles, cinq fenêtres et un test futur.</span></a>
+<a class="resource-card" href="pratique.html"><span class="card-title">Défi modèles</span><span class="card-copy">Classer avant d'ouvrir le test, puis défendre le compromis.</span></a>
+</div>
+
+## Production de la matinée
+
+La fiche de modèle finale doit préciser:
+
+1. le mandat;
+2. les périodes d'entraînement, de validation et de test;
+3. les modèles comparés;
+4. les mesures et leur stabilité;
+5. le compromis retenu;
+6. la limite la plus importante;
+7. une règle de surveillance et une condition de retrait.
+
+## Principe de comparaison
+
+Les trois modèles utilisent la même cible, les mêmes prédicteurs disponibles à la création, les mêmes règles de prétraitement, les mêmes fenêtres et les mêmes mesures. La complexité n'obtient aucun avantage méthodologique caché.
