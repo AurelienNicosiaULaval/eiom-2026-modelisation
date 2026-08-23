@@ -12,7 +12,7 @@ Votre équipe doit ouvrir le jeu test, évaluer les probabilités produites par 
 
 Durée: 25 minutes.
 
-Production: une matrice de confusion, une comparaison de seuils, un diagnostic de calibration et la fiche modèle.
+Production: une matrice de confusion, une comparaison de seuils, un diagnostic de calibration, une comparaison du score de Brier et la fiche modèle.
 
 ## Ce que vous devez apprendre
 
@@ -22,7 +22,8 @@ Production: une matrice de confusion, une comparaison de seuils, un diagnostic d
 2. identifier vrais positifs, faux positifs, vrais négatifs et faux négatifs;
 3. expliquer le compromis entre sensibilité et spécificité;
 4. interpréter une aire ROC sans la confondre avec la calibration;
-5. choisir un seuil à partir d'un mandat, et non par automatisme.
+5. interpréter un score de Brier par comparaison avec une règle de référence;
+6. choisir un seuil à partir d'un mandat, et non par automatisme.
 
 ## Trois familles de questions
 
@@ -190,14 +191,45 @@ Avec seulement 179 lignes de test, cette courbe groupée est exploratoire. Décr
 
 Si les points sont au-dessus de la diagonale, la fréquence observée dépasse la probabilité moyenne et le modèle sous-estime le risque dans ce groupe. S'ils sont sous la diagonale, il le surestime. Vérifiez toujours les axes avant d'utiliser ces mots.
 
-## 6. Rédiger la fiche modèle
+## 6. Comparer l'erreur des probabilités
+
+Le score de Brier est l'erreur quadratique moyenne des probabilités. Un score plus petit indique une erreur probabiliste plus faible, mais il n'existe pas de seuil universel permettant de déclarer un modèle bon. Il faut le comparer à une règle simple calculée sur les mêmes observations.
+
+Utilisez comme référence une probabilité constante égale à la proportion de survivants enregistrés dans l'entraînement:
+
+```{r}
+#| eval: false
+probabilite_reference <- mean(entrainement$survie)
+
+comparaison_brier <- predictions_test |>
+  summarise(
+    brier_modele = mean(
+      (survie - probabilite_survie)^2
+    ),
+    brier_reference = mean(
+      (survie - probabilite_reference)^2
+    )
+  )
+
+comparaison_brier
+```
+
+Questions:
+
+1. Le modèle améliore-t-il l'erreur quadratique par rapport à la règle constante?
+2. Cette comparaison suffit-elle à prouver que chaque groupe de probabilités est bien calibré?
+3. Pourquoi le score de Brier et l'aire ROC ne répondent-ils pas à la même question?
+
+Le score de Brier résume l'erreur des probabilités. Le graphique de calibration montre où certaines probabilités semblent trop élevées ou trop faibles. Les deux diagnostics se complètent.
+
+## 7. Rédiger la fiche modèle
 
 Écrivez exactement six phrases:
 
 1. unité, échantillon et réponse;
 2. prédicteurs et stratégie pour les âges manquants;
 3. association conditionnelle principale;
-4. résultat de discrimination et observation de calibration;
+4. résultats de discrimination, de calibration et de Brier;
 5. seuil retenu, mandat et erreur davantage acceptée;
 6. limite historique, causale ou de généralisation.
 
@@ -209,8 +241,9 @@ La fiche doit pouvoir être comprise sans la sortie R. Arrondissez les mesures �
 2. Choisir 0,50 uniquement parce que c'est la valeur par défaut.
 3. Confondre sensibilité et précision.
 4. Décrire cinq groupes de calibration comme une preuve définitive.
-5. Oublier que les âges manquants ont été exclus avant le partage.
-6. Transformer le seuil en règle historique de sauvetage.
+5. Interpréter le score de Brier sans le comparer à une référence.
+6. Oublier que les âges manquants ont été exclus avant le partage.
+7. Transformer le seuil en règle historique de sauvetage.
 
 ## Vérification finale
 
@@ -219,5 +252,6 @@ La fiche doit pouvoir être comprise sans la sortie R. Arrondissez les mesures �
 - La sensibilité et la précision ne sont pas confondues.
 - Le seuil est relié à un mandat.
 - L'aire ROC et la calibration répondent à deux questions différentes.
+- Le score de Brier du modèle est comparé à la règle constante.
 - La petite taille du test est mentionnée.
 - La fiche ne transforme pas l'exercice en règle réelle de sauvetage.

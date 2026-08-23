@@ -714,7 +714,7 @@ En 25 minutes:
 
 1. évaluez le seuil 0,50;
 2. comparez 0,30, 0,50 et 0,70;
-3. examinez ROC et calibration;
+3. examinez ROC, calibration et Brier;
 4. rédigez six phrases.
 
 [Ouvrir la mission finale](missions/mission3.html)
@@ -810,20 +810,25 @@ ggplot(
 
 ```{r}
 #| echo: false
+probabilite_reference <- mean(entrainement$survie)
+
 predictions_test |>
   summarise(
-    score_brier = mean(
+    brier_modele = mean(
       (survie - probabilite_survie)^2
+    ),
+    brier_reference = mean(
+      (survie - probabilite_reference)^2
     )
   )
 ```
 
-Plus le score est petit, plus l'erreur quadratique des probabilités est faible.
+Le modèle réduit l'erreur quadratique par rapport à une probabilité constante.
 
 <div class="takeaway">Discrimination et calibration restent deux propriétés distinctes.</div>
 
 ::: {.notes}
-4 minutes. Ne pas donner de seuil universel de qualité.
+4 minutes. Comparer 0,139 à 0,242. Ne pas donner de seuil universel de qualité.
 
 [Sources]
 - https://doi.org/10.1186/s12916-019-1466-7

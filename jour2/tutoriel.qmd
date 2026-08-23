@@ -581,20 +581,25 @@ ggplot(
 
 La représentation groupée est pédagogique et instable avec seulement 179 lignes de test. Elle permet de repérer des écarts grossiers, pas de déclarer définitivement le modèle calibré.
 
-Le score de Brier est l'erreur quadratique moyenne des probabilités:
+Le score de Brier est l'erreur quadratique moyenne des probabilités. Pour lui donner un point de comparaison, on peut utiliser une règle constante égale à la proportion de survivants enregistrés dans l'entraînement:
 
 ```{r}
-score_brier <- predictions_test |>
+probabilite_reference <- mean(entrainement$survie)
+
+comparaison_brier <- predictions_test |>
   summarise(
-    brier = mean(
+    brier_modele = mean(
       (survie - probabilite_survie)^2
+    ),
+    brier_reference = mean(
+      (survie - probabilite_reference)^2
     )
   )
 
-score_brier
+comparaison_brier
 ```
 
-Un score de 0 correspondrait à des probabilités parfaites. Le score combine discrimination et calibration; il doit être comparé à une référence et interprété avec la prévalence [@vancalster2019calibration].
+Un score de 0 correspondrait à des probabilités parfaites. Dans ce partage reproductible, le modèle obtient environ 0,139 contre 0,242 pour la règle constante. Cette amélioration ne suffit pas à démontrer une bonne calibration dans chaque partie de l'échelle. Le score combine discrimination et calibration; il doit être comparé à une référence et interprété avec la prévalence [@vancalster2019calibration].
 
 ## 21. Conditions de validité
 
