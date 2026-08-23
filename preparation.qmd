@@ -28,6 +28,7 @@ Le script installe uniquement les paquets manquants.
 library(tidyverse)
 library(tidymodels)
 library(AmesHousing)
+library(titanic)
 
 # Load the Day 1 data set
 ames <- make_ames()
@@ -35,9 +36,13 @@ ames <- make_ames()
 # Check the first observations and dimensions
 glimpse(ames)
 dim(ames)
+
+# Load the Day 2 data set
+data("titanic_train")
+dim(titanic_train)
 ```
 
-Vous devriez obtenir 2 930 lignes et 81 colonnes, soit le prix de vente et 80 caractéristiques des propriétés. Le second fichier pédagogique contient 18 000 requêtes 311 et 15 colonnes.
+Vous devriez obtenir 2 930 lignes et 81 colonnes pour Ames, puis 891 lignes et 12 colonnes pour `titanic_train`. Les 342 valeurs égales à 1 dans `Survived` correspondent aux passagers enregistrés comme ayant survécu dans cet échantillon [@hendricks2015titanic].
 
 ## Test de modélisation
 

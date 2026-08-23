@@ -8,6 +8,10 @@ if (!requireNamespace("AmesHousing", quietly = TRUE)) {
   stop("Le paquet AmesHousing est requis.", call. = FALSE)
 }
 
+if (!requireNamespace("titanic", quietly = TRUE)) {
+  stop("Le paquet titanic est requis.", call. = FALSE)
+}
+
 required_files <- c(
   "_quarto.yml",
   "index.qmd",
@@ -26,6 +30,9 @@ required_files <- c(
   "jour2/slides.qmd",
   "jour2/tutoriel.qmd",
   "jour2/pratique.qmd",
+  "jour2/missions/mission1.qmd",
+  "jour2/missions/mission2.qmd",
+  "jour2/missions/mission3.qmd",
   "jour3/slides.qmd",
   "jour3/tutoriel.qmd",
   "jour3/pratique.qmd",
@@ -38,6 +45,8 @@ private_files <- c(
   "instructeur/provenance-reutilisation.qmd",
   "instructeur/corriges/jour1.qmd",
   "instructeur/audit-pedagogique-jour1.qmd",
+  "instructeur/audit-pedagogique-jour2.qmd",
+  "instructeur/conducteur-matinee2.qmd",
   "instructeur/corriges/jour2.qmd",
   "instructeur/corriges/jour3.qmd"
 )
@@ -94,6 +103,7 @@ if (any(has_em_dash)) {
 
 bibliotheques <- read_csv("data/bibliotheques_quebec_2024.csv", show_col_types = FALSE)
 ames <- AmesHousing::make_ames()
+titanic <- titanic::titanic_train
 requetes_311 <- read_csv(
   "data/requetes_311_montreal_2024_eiom.csv",
   show_col_types = FALSE
@@ -102,6 +112,16 @@ requetes_311 <- read_csv(
 stopifnot(nrow(bibliotheques) == 188L)
 stopifnot(nrow(ames) == 2930L)
 stopifnot(ncol(ames) == 81L)
+stopifnot(nrow(titanic) == 891L)
+stopifnot(ncol(titanic) == 12L)
+stopifnot(sum(titanic$Survived) == 342L)
+stopifnot(sum(is.na(titanic$Age)) == 177L)
+stopifnot(
+  all(
+    c("PassengerId", "Survived", "Pclass", "Sex", "Age", "Fare") %in%
+      names(titanic)
+  )
+)
 stopifnot(
   all(
     c("Sale_Price", "Gr_Liv_Area", "Overall_Qual", "Year_Built", "Garage_Cars") %in%

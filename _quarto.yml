@@ -9,8 +9,10 @@ project:
     - preparation.qmd
     - ressources.qmd
     - jour1/*.qmd
+    - "!jour1/tutoriel 2.qmd"
     - jour1/missions/*.qmd
     - jour2/*.qmd
+    - jour2/missions/*.qmd
     - jour3/*.qmd
     - projet-integrateur.qmd
   resources:

@@ -15,6 +15,7 @@ required_packages <- c(
   "rpart",
   "scales",
   "tidymodels",
+  "titanic",
   "tidyverse",
   "xml2"
 )

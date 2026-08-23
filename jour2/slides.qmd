@@ -1,6 +1,6 @@
 ---
-title: "Estimer un risque"
-subtitle: "Régression logistique, calibration et seuils"
+title: "Expliquer une probabilité"
+subtitle: "Régression logistique avec les données Titanic"
 author: "Aurélien Nicosia"
 suppress-bibliography: true
 link-citations: false
@@ -25,306 +25,853 @@ execute:
 #| include: false
 library(tidyverse)
 library(tidymodels)
+library(titanic)
+library(janitor)
 library(broom)
+library(scales)
+library(patchwork)
 
 theme_set(theme_minimal(base_size = 18))
+tidymodels_prefer()
 
-requetes_311 <- read_csv(
-  "data/requetes_311_montreal_2024_eiom.csv",
-  show_col_types = FALSE
-) |>
-  mutate(
-    date_creation = as.Date(date_creation),
+data("titanic_train")
+
+titanic_eiom <- titanic_train |>
+  clean_names() |>
+  transmute(
+    passenger_id,
+    survie = survived,
     verite = factor(
-      issue_7_jours,
-      levels = c("non_terminee_7_jours", "terminee_7_jours")
-    )
-  ) |>
-  arrange(date_creation, identifiant_requete)
-
-date_coupure <- as.Date("2024-10-01")
-entrainement <- requetes_311 |>
-  filter(date_creation < date_coupure)
-test <- requetes_311 |>
-  filter(date_creation >= date_coupure)
-
-recette_logistique <- recipe(
-  verite ~ jour_semaine + plage_horaire + activite +
-    type_lieu + arrondissement + provenance,
-  data = entrainement
-) |>
-  step_novel(all_nominal_predictors(), new_level = "Nouveau") |>
-  step_unknown(all_nominal_predictors(), new_level = "Non précisé") |>
-  step_other(activite, threshold = 0.01, other = "Autres activités") |>
-  step_other(type_lieu, threshold = 0.01, other = "Autres lieux") |>
-  step_other(arrondissement, threshold = 0.005, other = "Autres territoires") |>
-  step_other(provenance, threshold = 0.005, other = "Autres canaux") |>
-  step_zv(all_predictors())
-
-ajustement_logistique <- workflow() |>
-  add_recipe(recette_logistique) |>
-  add_model(logistic_reg() |> set_engine("glm")) |>
-  fit(data = entrainement)
-
-predictions_test <- bind_cols(
-  test |> select(date_creation, mois_creation, arrondissement, verite),
-  predict(ajustement_logistique, new_data = test, type = "prob")
-)
-```
-
-## À la fin de la matinée
-
-Vous saurez construire une probabilité, vérifier si elle tient dans le futur et choisir un seuil sans oublier les conséquences de l'erreur.
-
-::: {.notes}
-2 minutes. Annoncer la production: une première fiche de modèle.
-:::
-
-::: {.question-slide}
-## Une probabilité de 0,60: agir ou attendre?
-:::
-
-Vous devez décider avant de connaître la réponse.
-
-::: {.notes}
-Faire voter avec les mains. Ne pas donner de contexte avant le vote, puis demander quelles informations manquent.
-:::
-
-## Le scénario
-
-Au moment où une demande 311 est créée, estimer la probabilité qu'elle ne soit pas terminée dans les sept jours.
-
-Une équipe pourrait ensuite examiner préventivement les demandes à risque élevé.
-
-<div class="takeaway">La fenêtre de sept jours est pédagogique. Ce n'est pas une norme officielle.</div>
-
-## Une cible doit être observable et datée
-
-```{mermaid}
-flowchart LR
-  A["Création de la demande"] --> B["Prédiction"]
-  B --> C["Sept jours de suivi"]
-  C --> D["Issue observée"]
-```
-
-Le moment de prédiction détermine les variables autorisées.
-
-## Le test de la fuite
-
-| Variable | Disponible à la création? | Utilisation |
-|---|:---:|---|
-| Activité | Oui | Prédicteur |
-| Arrondissement | Oui | Prédicteur |
-| Canal d'origine | Oui | Prédicteur |
-| Dernier statut | Non | Construction de la cible |
-| Date du dernier statut | Non | Construction de la cible |
-
-::: {.question-slide}
-## Quelle performance obtiendrait un modèle qui utilise le dernier statut?
-:::
-
-## La fréquence change au fil de l'année
-
-```{r}
-#| echo: false
-#| fig-width: 10
-#| fig-height: 5
-requetes_311 |>
-  count(mois_creation, verite) |>
-  group_by(mois_creation) |>
-  mutate(proportion = n / sum(n)) |>
-  filter(verite == "non_terminee_7_jours") |>
-  ggplot(aes(fct_inorder(mois_creation), proportion, group = 1)) +
-  geom_line(color = "#0f7c80", linewidth = 1.2) +
-  geom_point(color = "#b5222e", size = 3) +
-  scale_y_continuous(labels = scales::label_percent()) +
-  labs(x = NULL, y = "Non terminée dans les sept jours") +
-  theme(axis.text.x = element_text(angle = 40, hjust = 1))
-```
-
-## Le futur reste fermé
-
-```{r}
-#| echo: false
-tibble(
-  ensemble = c("Entraînement", "Test futur"),
-  n = c(nrow(entrainement), nrow(test)),
-  debut = c(min(entrainement$date_creation), min(test$date_creation)),
-  fin = c(max(entrainement$date_creation), max(test$date_creation)),
-  prevalence = c(
-    mean(entrainement$verite == "non_terminee_7_jours"),
-    mean(test$verite == "non_terminee_7_jours")
+      if_else(survived == 1, "survecu", "non_survecu"),
+      levels = c("non_survecu", "survecu")
+    ),
+    classe = factor(
+      pclass,
+      levels = c(3, 2, 1),
+      labels = c("3e", "2e", "1re")
+    ),
+    sexe = factor(
+      sex,
+      levels = c("male", "female"),
+      labels = c("homme", "femme")
+    ),
+    age,
+    tarif = fare,
+    famille_bord = sib_sp + parch
   )
+
+titanic_analyse <- titanic_eiom |>
+  drop_na(age, tarif, sexe, classe)
+
+set.seed(2026)
+partage <- initial_split(
+  titanic_analyse,
+  prop = 0.75,
+  strata = verite
 )
-```
+entrainement <- training(partage)
+test <- testing(partage)
 
-Un partage temporel imite la question: le modèle appris hier fonctionnera-t-il demain?
+modele_logistique <- glm(
+  survie ~ sexe + classe + age + tarif,
+  data = entrainement,
+  family = binomial()
+)
 
-## Du 0 ou 1 à une probabilité
-
-$$
-\log\left(\frac{p}{1-p}\right)
-= \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p
-$$
-
-La transformation logit garde la probabilité estimée entre 0 et 1.
-
-## La recette appartient à l'entraînement
-
-```{r}
-recette_logistique <- recipe(
-  verite ~ jour_semaine + plage_horaire + activite +
-    type_lieu + arrondissement + provenance,
-  data = entrainement
-) |>
-  step_novel(all_nominal_predictors()) |>
-  step_unknown(all_nominal_predictors()) |>
-  step_other(activite, threshold = 0.01) |>
-  step_other(type_lieu, threshold = 0.01) |>
-  step_other(arrondissement, threshold = 0.005) |>
-  step_other(provenance, threshold = 0.005)
-```
-
-Les modalités rares, manquantes ou nouvelles sont traitées sans apprendre du test.
-
-## Un rapport de cotes est conditionnel
-
-```{r}
-#| echo: false
-extract_fit_engine(ajustement_logistique) |>
-  tidy() |>
+rapports_cotes <- tidy(modele_logistique) |>
   mutate(
     conf.low = estimate - qnorm(0.975) * std.error,
     conf.high = estimate + qnorm(0.975) * std.error,
     across(c(estimate, conf.low, conf.high), exp)
-  ) |>
-  filter(term != "(Intercept)") |>
-  filter(str_detect(term, "^(plage_horaire|provenance)")) |>
-  select(term, estimate, conf.low, conf.high) |>
-  arrange(term)
+  )
+
+predictions_test <- test |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = test,
+      type = "response"
+    )
+  )
+
+evaluer_seuil <- function(donnees, seuil) {
+  donnees |>
+    summarise(
+      seuil = seuil,
+      proportion_positive = mean(probabilite_survie >= seuil),
+      sensibilite = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(survie == 1),
+      specificite = sum(
+        probabilite_survie < seuil & survie == 0
+      ) / sum(survie == 0),
+      precision = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(probabilite_survie >= seuil)
+    )
+}
+
+table_seuils <- map_dfr(
+  seq(0.10, 0.90, by = 0.05),
+  ~ evaluer_seuil(predictions_test, .x)
+)
+
+calibration <- predictions_test |>
+  mutate(groupe = ntile(probabilite_survie, 5)) |>
+  summarise(
+    probabilite_moyenne = mean(probabilite_survie),
+    frequence_observee = mean(survie),
+    n = n(),
+    .by = groupe
+  )
 ```
 
-Un rapport de cotes n'est ni une différence de probabilités, ni une preuve causale, ni un classement de la qualité des services.
+## À la fin de la matinée
 
-## Trois questions, trois familles de mesures
+Vous saurez expliquer une probabilité, interpréter un rapport de cotes et évaluer un modèle sans confondre classement, calibration et décision.
 
-1. Classement: le modèle ordonne-t-il correctement les risques?
-2. Calibration: les probabilités correspondent-elles aux fréquences?
-3. Décision: que se passe-t-il à un seuil donné?
+::: {.notes}
+3 minutes. Annoncer que la présentation reste le fil conducteur jusqu'à 12 h 15 et que trois missions produiront une fiche modèle.
+:::
 
-<div class="takeaway">Aucune mesure unique ne répond aux trois questions.</div>
+## Une matinée, trois productions
 
-## Discrimination sur le test futur
+1. Explorer et formuler
+2. Ajuster et interpréter
+3. Évaluer et choisir un seuil
+
+<div class="takeaway">Chaque mission ajoute une preuve et une limite à la fiche finale.</div>
+
+::: {.notes}
+2 minutes. Montrer le trajet, sans détailler les notions.
+:::
+
+## Une probabilité de 0,70 signifie-t-elle que la personne survivra?
+
+Votez, puis précisez ce qui manque pour répondre.
+
+::: {.notes}
+5 minutes. Faire voter oui, non ou cela dépend. Faire émerger modèle, population, calibration et moment de l'observation.
+:::
+
+## Un jeu facile à lire, mais limité
+
+`titanic_train` contient 891 passagers et 12 variables.
+
+- survie enregistrée;
+- classe;
+- sexe;
+- âge;
+- tarif;
+- proches à bord.
+
+<div class="takeaway">Il s'agit d'un échantillon d'apprentissage, pas d'un manifeste complet.</div>
+
+::: {.notes}
+3 minutes. Présenter le fichier comme outil pédagogique, sans raconter une histoire historique non documentée.
+
+[Sources]
+- https://CRAN.R-project.org/package=titanic
+:::
+
+## Une ligne, une réponse, un événement
+
+| Élément | Définition |
+|---|---|
+| Unité | un passager de l'échantillon |
+| Réponse | `survie`, codée 0 ou 1 |
+| Événement positif | `survecu` |
+| Population immédiate | les 891 lignes observées |
+
+::: {.notes}
+4 minutes. Demander pourquoi il faut annoncer l'événement positif avant de calculer la sensibilité.
+:::
+
+## La catégorie majoritaire atteint déjà 61,6 %
 
 ```{r}
 #| echo: false
-metric_set(roc_auc, pr_auc)(
-  predictions_test,
-  truth = verite,
-  .pred_non_terminee_7_jours,
-  event_level = "first"
-)
+titanic_eiom |>
+  count(verite) |>
+  mutate(proportion = n / sum(n))
 ```
+
+Une exactitude doit être comparée à une règle simple.
+
+::: {.notes}
+4 minutes. Demander la prédiction d'une règle qui répond toujours non_survecu. Insister: exactitude élevée ne signifie pas probabilités utiles.
+:::
+
+## Les proportions diffèrent selon le sexe enregistré
 
 ```{r}
 #| echo: false
 #| fig-width: 8
 #| fig-height: 5
+titanic_eiom |>
+  count(sexe, verite) |>
+  group_by(sexe) |>
+  mutate(proportion = n / sum(n)) |>
+  ggplot(aes(sexe, proportion, fill = verite)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = label_percent()) +
+  labs(x = NULL, y = "Proportion", fill = "Survie")
+```
+
+::: {.notes}
+4 minutes. Faire décrire le graphique sans employer « cause ».
+:::
+
+## La classe structure aussi les proportions
+
+```{r}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 5
+titanic_eiom |>
+  count(classe, verite) |>
+  group_by(classe) |>
+  mutate(proportion = n / sum(n)) |>
+  ggplot(aes(classe, proportion, fill = verite)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = label_percent()) +
+  labs(x = "Classe", y = "Proportion", fill = "Survie")
+```
+
+::: {.notes}
+4 minutes. Demander ce que ce graphique ne contrôle pas.
+:::
+
+## Décrire n'est pas expliquer causalement
+
+Les différences observées peuvent refléter:
+
+- des règles et pratiques historiques;
+- des caractéristiques liées entre elles;
+- des variables absentes;
+- la construction de l'échantillon;
+- des valeurs manquantes.
+
+<div class="takeaway">Le modèle décrit des associations conditionnelles dans les données.</div>
+
+::: {.notes}
+4 minutes. Faire corriger collectivement une phrase causale.
+:::
+
+## L'âge manque pour 177 passagers
+
+```{r}
+#| echo: false
+titanic_eiom |>
+  summarise(
+    lignes = n(),
+    age_manquant = sum(is.na(age)),
+    lignes_completes = sum(!is.na(age))
+  )
+```
+
+L'analyse en cas complets est simple, mais elle change l'échantillon.
+
+::: {.notes}
+4 minutes. Expliquer que la simplicité pédagogique ne rend pas la suppression neutre.
+:::
+
+## Une droite peut sortir de l'intervalle
+
+Une régression linéaire sur une réponse 0 ou 1:
+
+1. peut prédire moins de 0 ou plus de 1;
+2. impose une variance constante;
+3. ignore la saturation près de 0 et de 1.
+
+<div class="takeaway">Nous gardons un prédicteur linéaire, mais nous changeons d'échelle.</div>
+
+::: {.notes}
+4 minutes. Relier au jour 1. Demander ce qu'une probabilité doit respecter.
+:::
+
+## La réponse suit une loi de Bernoulli
+
+$$
+Y_i \mid X_i \sim \operatorname{Bernoulli}(p_i)
+$$
+
+Pour chaque profil $X_i$:
+
+- $Y_i$ vaut 0 ou 1;
+- $p_i$ est une probabilité conditionnelle;
+- la variance dépend de $p_i$.
+
+::: {.notes}
+4 minutes. Ne pas développer la fonction de masse. Faire distinguer réponse observée et probabilité non observée.
+
+[Sources]
+- https://stat.ethz.ch/R-manual/R-devel/library/stats/html/Binomial.html
+:::
+
+## Probabilité, cote et log-cote
+
+$$
+\text{cote} = \frac{p}{1-p}
+\qquad
+\text{logit}(p) = \log\left(\frac{p}{1-p}\right)
+$$
+
+| Probabilité | Cote | Log-cote |
+|---:|---:|---:|
+| 0,20 | 0,25 | -1,39 |
+| 0,50 | 1,00 | 0 |
+| 0,80 | 4,00 | 1,39 |
+
+::: {.notes}
+5 minutes. Faire calculer oralement la cote pour 0,75.
+
+[Sources]
+- https://stat.ethz.ch/R-manual/R-devel/library/stats/help/family.html
+:::
+
+## Une cote de 3 n'est pas une probabilité de 3
+
+$$
+p = \frac{\text{cote}}{1+\text{cote}}
+$$
+
+Une cote de 3 correspond à une probabilité de 0,75.
+
+Une cote de 0,5 correspond à une probabilité d'environ 0,33.
+
+::: {.notes}
+3 minutes. Faire traduire les deux exemples en mots.
+:::
+
+## La fonction logistique borne les prédictions
+
+```{r}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 5
+tibble(eta = seq(-6, 6, length.out = 300)) |>
+  mutate(probabilite = plogis(eta)) |>
+  ggplot(aes(eta, probabilite)) +
+  geom_line(color = "#0f7c80", linewidth = 1.4) +
+  geom_hline(yintercept = c(0, 1), linetype = 3) +
+  labs(x = "Prédicteur linéaire", y = "Probabilité")
+```
+
+::: {.notes}
+4 minutes. Montrer la zone où la probabilité change le plus rapidement.
+:::
+
+## Le modèle est linéaire sur la log-cote
+
+$$
+\log\left(\frac{p_i}{1-p_i}\right)
+= \beta_0 + \beta_1 X_{i1} + \cdots + \beta_k X_{ik}
+$$
+
+Puis:
+
+$$
+p_i = \frac{\exp(\eta_i)}{1+\exp(\eta_i)}.
+$$
+
+::: {.notes}
+4 minutes. Dire que « linéaire » concerne l'échelle logit, pas directement la probabilité.
+
+[Sources]
+- https://www.statlearning.com/
+- https://stat.ethz.ch/R-manual/R-devel/library/stats/help/family.html
+:::
+
+## La vraisemblance remplace les moindres carrés
+
+`glm()` choisit les coefficients qui rendent les réponses observées les plus plausibles sous le modèle.
+
+- survivant avec probabilité élevée: contribution favorable;
+- non-survivant avec probabilité faible: contribution favorable;
+- prédiction confiante et fausse: forte pénalité.
+
+::: {.notes}
+4 minutes. Ne pas dériver. Comparer seulement le principe avec les moindres carrés du jour 1.
+
+[Sources]
+- https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html
+:::
+
+## Les catégories de référence organisent la comparaison
+
+Dans le modèle commun:
+
+- `homme` est la référence pour `sexe`;
+- `3e` est la référence pour `classe`;
+- l'âge s'interprète par année;
+- le tarif s'interprète par unité monétaire.
+
+<div class="takeaway">Un coefficient catégoriel n'existe pas sans catégorie de référence.</div>
+
+::: {.notes}
+4 minutes. Faire prédire le sens attendu de sexefemme et classe1re.
+:::
+
+## Le jeu test reste fermé
+
+```{r}
+#| echo: false
+tibble(
+  ensemble = c("Entraînement", "Test"),
+  n = c(nrow(entrainement), nrow(test)),
+  proportion_survecu = c(
+    mean(entrainement$survie),
+    mean(test$survie)
+  )
+)
+```
+
+Le modèle apprend sur 535 lignes et sera évalué sur 179 lignes réservées.
+
+::: {.notes}
+5 minutes. Demander ce qui arrive si l'on modifie la formule après avoir vu les résultats du test.
+
+[Sources]
+- https://www.tmwr.org/splitting.html
+:::
+
+## Mission 1: explorer et formuler
+
+En 25 minutes, produisez:
+
+1. deux graphiques;
+2. une formule de modèle;
+3. trois phrases;
+4. une limite liée aux données.
+
+[Ouvrir la mission 1](missions/mission1.html)
+
+::: {.notes}
+25 minutes. À 10 minutes, vérifier l'événement positif. À 20 minutes, imposer la rédaction.
+:::
+
+## Débrief: notre modèle commun
+
+$$
+\text{survie}
+\sim
+\text{sexe}
++ \text{classe}
++ \text{âge}
++ \text{tarif}
+$$
+
+Nous cherchons des associations conditionnelles lisibles, pas le modèle historique définitif.
+
+::: {.notes}
+10 minutes. Faire lire deux verdicts et corriger le langage causal. Confirmer les références homme et 3e.
+:::
+
+## Un appel suffit pour ajuster
+
+```{r}
+modele_logistique <- glm(
+  survie ~ sexe + classe + age + tarif,
+  data = entrainement,
+  family = binomial()
+)
+```
+
+`family = binomial()` utilise le lien logit par défaut.
+
+::: {.notes}
+4 minutes. Montrer la formule et le jeu d'entraînement. Ne pas lire toute la sortie summary.
+
+[Sources]
+- https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html
+:::
+
+## L'exponentielle donne les rapports de cotes
+
+```{r}
+#| echo: false
+rapports_cotes |>
+  filter(term != "(Intercept)") |>
+  transmute(
+    terme = term,
+    `rapport de cotes` = round(estimate, 2),
+    `borne basse` = round(conf.low, 2),
+    `borne haute` = round(conf.high, 2)
+  ) |>
+  knitr::kable()
+```
+
+::: {.notes}
+5 minutes. Faire repérer les valeurs au-dessus et au-dessous de 1.
+:::
+
+## L'interprétation reste conditionnelle
+
+Pour `sexefemme`:
+
+> À classe, âge et tarif identiques, les cotes de survie enregistrée des femmes sont estimées à environ `r round(rapports_cotes$estimate[rapports_cotes$term == "sexefemme"], 1)` fois celles des hommes.
+
+Ce nombre n'est pas une différence de probabilités.
+
+::: {.notes}
+5 minutes. Faire lire la phrase et demander ce que « identiques » couvre vraiment.
+:::
+
+## Dix années donnent une unité plus lisible
+
+```{r}
+#| echo: false
+tibble(
+  comparaison = c("1 année", "10 années"),
+  rapport_cotes = c(
+    exp(coef(modele_logistique)[["age"]]),
+    exp(10 * coef(modele_logistique)[["age"]])
+  )
+)
+```
+
+L'unité d'interprétation doit être substantiellement compréhensible.
+
+::: {.notes}
+4 minutes. Faire formuler la phrase pour dix ans. Rappeler la linéarité supposée sur le logit.
+:::
+
+## Le même rapport de cotes produit des écarts différents
+
+```{r}
+#| echo: false
+profils <- tibble(
+  profil = c("Homme, 3e classe", "Femme, 3e classe"),
+  sexe = factor(
+    c("homme", "femme"),
+    levels = levels(entrainement$sexe)
+  ),
+  classe = factor(
+    c("3e", "3e"),
+    levels = levels(entrainement$classe)
+  ),
+  age = c(30, 30),
+  tarif = c(15, 15)
+)
+
+profils |>
+  mutate(
+    probabilite = predict(
+      modele_logistique,
+      newdata = profils,
+      type = "response"
+    )
+  ) |>
+  select(profil, probabilite)
+```
+
+::: {.notes}
+4 minutes. Comparer les probabilités sans les présenter comme contrefactuelles causales.
+:::
+
+## Significativité, importance et prédiction
+
+| Élément | Ce qu'il renseigne |
+|---|---|
+| Rapport de cotes | taille et direction conditionnelles |
+| Intervalle | incertitude d'estimation |
+| Valeur p | compatibilité avec l'absence d'association |
+| Jeu test | performance hors échantillon |
+| Calibration | qualité des probabilités |
+
+<div class="takeaway">Aucun élément ne répond seul à toutes les questions.</div>
+
+::: {.notes}
+5 minutes. Faire corriger la phrase « significatif donc bon prédicteur ».
+:::
+
+## Mission 2: ajuster et interpréter
+
+En 25 minutes, produisez:
+
+1. deux interprétations de rapports de cotes;
+2. deux probabilités de profils;
+3. une limite de portée.
+
+[Ouvrir la mission 2](missions/mission2.html)
+
+::: {.notes}
+25 minutes. À 8 minutes, vérifier les références. À 18 minutes, faire retirer tout langage causal.
+:::
+
+## Pause
+
+Revenez avec une phrase:
+
+> Un rapport de cotes n'est pas...
+
+::: {.notes}
+10 minutes. Reprendre exactement à l'heure.
+:::
+
+## Les probabilités sont évaluées sur le test
+
+```{r}
+predictions_test <- test |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = test,
+      type = "response"
+    )
+  )
+```
+
+Une probabilité élevée n'est pas une certitude. Sa qualité doit être vérifiée.
+
+::: {.notes}
+4 minutes. Demander pourquoi les lignes de test n'ont pas servi à ajuster les coefficients.
+:::
+
+## Le seuil fabrique une classe
+
+$$
+\widehat{Y} =
+\begin{cases}
+\text{survecu}, & \widehat{p} \ge s,\\
+\text{non_survecu}, & \widehat{p} < s.
+\end{cases}
+$$
+
+Changer $s$ ne change pas les probabilités, seulement les classes.
+
+::: {.notes}
+4 minutes. Faire voter pour 0,30, 0,50 ou 0,70 avant de donner un mandat.
+:::
+
+## La matrice nomme quatre résultats
+
+```{r}
+#| echo: false
+predictions_05 <- predictions_test |>
+  mutate(
+    classe_predite = factor(
+      if_else(
+        probabilite_survie >= 0.50,
+        "survecu",
+        "non_survecu"
+      ),
+      levels = levels(verite)
+    )
+  )
+
+conf_mat(
+  predictions_05,
+  truth = verite,
+  estimate = classe_predite
+)
+```
+
+::: {.notes}
+5 minutes. Faire pointer vrais positifs, faux positifs, vrais négatifs et faux négatifs.
+:::
+
+## Chaque mesure change de dénominateur
+
+| Mesure | Point de départ |
+|---|---|
+| Exactitude | toutes les observations |
+| Sensibilité | survivants enregistrés |
+| Spécificité | non-survivants enregistrés |
+| Précision | prédictions positives |
+
+::: {.notes}
+5 minutes. Demander la différence entre sensibilité et précision.
+:::
+
+## Monter le seuil change le compromis
+
+```{r}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 5
+table_seuils |>
+  select(seuil, sensibilite, specificite, precision) |>
+  pivot_longer(
+    -seuil,
+    names_to = "mesure",
+    values_to = "valeur"
+  ) |>
+  ggplot(aes(seuil, valeur, color = mesure)) +
+  geom_line(linewidth = 1.1) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(x = "Seuil", y = "Valeur", color = NULL)
+```
+
+::: {.notes}
+5 minutes. Faire décrire le compromis avant de demander un seuil.
+:::
+
+## Mission finale: évaluer et choisir
+
+En 25 minutes:
+
+1. évaluez le seuil 0,50;
+2. comparez 0,30, 0,50 et 0,70;
+3. examinez ROC et calibration;
+4. rédigez six phrases.
+
+[Ouvrir la mission finale](missions/mission3.html)
+
+::: {.notes}
+25 minutes. À 12 minutes, imposer le choix d'un mandat. À 20 minutes, commencer la fiche.
+:::
+
+## La courbe ROC parcourt tous les seuils
+
+```{r}
+#| echo: false
+#| fig-width: 7
+#| fig-height: 5
 roc_curve(
   predictions_test,
   truth = verite,
-  .pred_non_terminee_7_jours,
-  event_level = "first"
+  probabilite_survie,
+  event_level = "second"
 ) |>
   autoplot() +
   coord_equal()
 ```
 
-## Une bonne aire ROC ne garantit pas une bonne probabilité
+::: {.notes}
+5 minutes. Expliquer les axes. Ne pas présenter la courbe comme un seuil choisi.
+
+[Sources]
+- https://doi.org/10.1016/j.patrec.2005.10.010
+:::
+
+## L'aire ROC mesure un classement
 
 ```{r}
 #| echo: false
-#| fig-width: 8
-#| fig-height: 5
-calibration <- predictions_test |>
-  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
-  group_by(groupe) |>
-  summarise(
-    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
-    frequence_observee = mean(verite == "non_terminee_7_jours"),
-    n = n(),
-    .groups = "drop"
-  )
-
-ggplot(calibration, aes(probabilite_moyenne, frequence_observee)) +
-  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "#52606d") +
-  geom_line(color = "#0f7c80") +
-  geom_point(aes(size = n), color = "#b5222e") +
-  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
-  labs(x = "Probabilité prédite", y = "Fréquence observée", size = "n")
+roc_auc(
+  predictions_test,
+  truth = verite,
+  probabilite_survie,
+  event_level = "second"
+)
 ```
 
-## Le seuil fabrique les erreurs
+Elle compare le score d'un positif et celui d'un négatif choisis au hasard.
 
-| Réalité | Signalée | Non signalée |
-|---|---|---|
-| Non terminée en sept jours | Vrai positif | Faux négatif |
-| Terminée en sept jours | Faux positif | Vrai négatif |
-
-Augmenter le seuil réduit généralement les faux positifs et augmente les faux négatifs.
-
-## Enchère de seuils
-
-Votre équipe reçoit une capacité maximale:
-
-- 10 % des demandes;
-- 20 % des demandes;
-- 35 % des demandes.
-
-Choisissez un seuil, puis annoncez la sensibilité obtenue et l'erreur acceptée.
+Elle ne garantit ni calibration, ni seuil utile, ni causalité.
 
 ::: {.notes}
-12 minutes. Utiliser la pratique. Les équipes doivent justifier le seuil par la capacité, pas par 0,5.
+4 minutes. Demander ce qu'une AUC élevée ne dit pas.
+
+[Sources]
+- https://doi.org/10.1016/j.patrec.2005.10.010
 :::
 
-## Les coûts ne tombent pas du ciel
+## La calibration vérifie les probabilités
 
-- Qui supporte une vérification inutile?
-- Que signifie manquer une demande à risque?
-- Les conséquences sont-elles identiques pour toutes les activités?
-- La capacité est-elle stable dans le temps?
+```{r}
+#| echo: false
+#| fig-width: 7
+#| fig-height: 5
+ggplot(
+  calibration,
+  aes(probabilite_moyenne, frequence_observee)
+) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = 2,
+    color = "#52606d"
+  ) +
+  geom_line(color = "#0f7c80") +
+  geom_point(aes(size = n), color = "#b5222e") +
+  scale_size_continuous(
+    breaks = c(35, 36),
+    labels = label_number(accuracy = 1)
+  ) +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(
+    x = "Probabilité moyenne",
+    y = "Fréquence observée",
+    size = "n"
+  )
+```
 
-Un coût numérique est une hypothèse de gouvernance, pas seulement un paramètre statistique.
+::: {.notes}
+5 minutes. Préciser que cinq groupes sur 179 lignes donnent un diagnostic exploratoire.
 
-## Une différence territoriale demande une enquête
+[Sources]
+- https://doi.org/10.1186/s12916-019-1466-7
+:::
 
-Comparer le risque prédit entre arrondissements peut refléter:
+## Le Brier pénalise les probabilités fausses
 
-- la composition des demandes;
-- des processus distincts;
-- des pratiques de consignation;
-- des transferts vers d'autres systèmes;
-- des variables absentes.
+```{r}
+#| echo: false
+predictions_test |>
+  summarise(
+    score_brier = mean(
+      (survie - probabilite_survie)^2
+    )
+  )
+```
 
-Elle ne mesure pas directement la qualité d'un service [@montreal2026requete311].
+Plus le score est petit, plus l'erreur quadratique des probabilités est faible.
 
-## La fiche de modèle, version 1
+<div class="takeaway">Discrimination et calibration restent deux propriétés distinctes.</div>
 
-1. Cible et fenêtre temporelle
-2. Moment de prédiction
-3. Variables autorisées et interdites
+::: {.notes}
+4 minutes. Ne pas donner de seuil universel de qualité.
+
+[Sources]
+- https://doi.org/10.1186/s12916-019-1466-7
+:::
+
+## Un appel réussi ne suffit pas
+
+Vérifiez:
+
+1. unité, événement et population;
+2. indépendance suffisante des observations;
+3. forme linéaire sur le logit;
+4. absence de séparation complète;
+5. stabilité des coefficients et cas influents;
+6. performance sur des données réservées;
+7. pertinence pour l'usage visé.
+
+::: {.notes}
+6 minutes. Préciser que la normalité des prédicteurs n'est pas requise. Mentionner interactions et splines comme extensions.
+
+[Sources]
+- https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html
+- https://www.statlearning.com/
+:::
+
+## La fiche modèle en six phrases
+
+1. Unité, échantillon et réponse
+2. Prédicteurs et valeurs manquantes
+3. Association conditionnelle
 4. Discrimination et calibration
-5. Seuil, capacité et coûts
-6. Limites et surveillance
+5. Seuil, mandat et erreur acceptée
+6. Limite historique, causale ou de transfert
 
-## Ce que nous emportons
+::: {.notes}
+5 minutes. Faire lire deux fiches. Refuser toute formulation de règle réelle de sauvetage.
+:::
 
-- Une cible binaire doit être définie dans le temps.
-- Le test doit représenter un futur plausible.
-- Une probabilité bien classée peut être mal calibrée.
-- Un seuil est une décision, pas une propriété du modèle.
-- Les conséquences et la gouvernance font partie de l'évaluation.
+## Sept questions avant de conclure
 
-::: {.question-slide}
-## Quelle information vous manque encore pour défendre un seuil réel?
+1. Quel événement est positif?
+2. Quelle population est couverte?
+3. Comment les valeurs manquantes sont-elles traitées?
+4. Quelles sont les références?
+5. Le test est-il resté fermé?
+6. Classement et calibration sont-ils suffisants?
+7. Quel seuil, quelle erreur et quelle limite?
+
+::: {.notes}
+5 minutes. Billet de sortie: une notion utile et une conclusion désormais refusée. Terminer à 12 h 15.
 :::

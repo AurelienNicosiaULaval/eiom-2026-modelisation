@@ -7,7 +7,7 @@ Site public: https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/
 ## Contenu
 
 - Jour 1: régression linéaire multiple et diagnostics
-- Jour 2: régression logistique, seuils et calibration sur des requêtes 311
+- Jour 2: régression logistique, seuils et calibration avec les données Titanic
 - Jour 3: arbres, forêts aléatoires et validation temporelle
 - Diagnostic de départ, tutoriels, pratiques et projet intégrateur
 

@@ -1,180 +1,44 @@
 ---
-title: "Pratique: la mission seuil"
-subtitle: "Prioriser sans transformer une probabilité en vérité"
+title: "Missions du jour 2"
+subtitle: "Explorer, interpréter, évaluer"
 format:
   html:
     embed-resources: true
 ---
 
-## Scénario pédagogique
+## Fonctionnement
 
-Une équipe de suivi dispose d'une capacité limitée. Elle souhaite examiner, dès leur création, certaines demandes 311 susceptibles de ne pas être terminées dans les sept jours.
+Les missions sont réalisées en équipes de trois ou quatre personnes. Elles apparaissent à trois moments de la présentation. Chaque production est réutilisée dans la mission suivante, jusqu'à la rédaction d'une fiche modèle.
 
-La fenêtre de sept jours et les coûts ci-dessous sont pédagogiques. Ils ne décrivent pas une politique de la Ville de Montréal.
+Chaque page contient le mandat, les objectifs d'apprentissage, les variables nécessaires, le code de départ, les questions d'interprétation et une vérification finale. Le [tutoriel complet](tutoriel.html) fournit une explication continue et des résultats pré-rendus.
+
+<div class="resource-grid">
+<a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Explorer la survie enregistrée et formuler le modèle.</span></a>
+<a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Ajuster le modèle et interpréter les rapports de cotes.</span></a>
+<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Évaluer, choisir un seuil et rédiger la fiche modèle.</span></a>
+</div>
+
+## Production cumulative
+
+| Mission | Durée | Question dominante | Production |
+|---|---:|---|---|
+| 1 | 25 min | Que modélisons-nous et avec quelles limites? | deux graphiques, formule et trois phrases |
+| 2 | 25 min | Que signifient les coefficients et probabilités? | deux interprétations et deux profils prédits |
+| finale | 25 min | Le modèle classe-t-il et calibre-t-il assez bien? | seuil, diagnostic et fiche de six phrases |
 
 ## Rôles
 
-Chaque équipe répartit quatre rôles:
+Répartissez quatre responsabilités:
 
-1. analyste: calcule les mesures;
-2. responsable des opérations: impose une capacité réaliste;
-3. personne requérante: examine les conséquences des erreurs;
-4. sceptique: cherche une fuite d'information ou une limite d'applicabilité.
+1. la personne pilote exécute le code;
+2. la personne interprète traduit chaque résultat;
+3. la personne vérificatrice contrôle les niveaux de référence et les dénominateurs;
+4. la personne sceptique cherche une limite ou une conclusion trop forte.
 
-## Mise en route
+Changez de rôle entre les missions. Une personne qui ne contrôle pas le clavier doit toujours pouvoir expliquer le résultat.
 
-Utilisez l'objet `predictions_test` construit dans le tutoriel.
+## Règle de travail
 
-```{r}
-#| eval: false
-library(tidyverse)
-library(tidymodels)
+Une réponse complète relie une question, une preuve et une limite. Une valeur p, une aire ROC ou une matrice de confusion isolée ne constitue pas une conclusion.
 
-# Required columns:
-# - verite
-# - arrondissement
-# - .pred_non_terminee_7_jours
-```
-
-## Mission 1: trois seuils
-
-Complétez la fonction et évaluez les seuils 0,35, 0,50 et 0,65.
-
-```{r}
-#| eval: false
-evaluer_seuil <- function(donnees, seuil) {
-  donnees |>
-    summarise(
-      seuil = seuil,
-      proportion_signalee = mean(
-        .pred_non_terminee_7_jours >= seuil
-      ),
-      vrais_positifs = sum(
-        .pred_non_terminee_7_jours >= seuil &
-          verite == "non_terminee_7_jours"
-      ),
-      faux_positifs = sum(
-        .pred_non_terminee_7_jours >= seuil &
-          verite == "terminee_7_jours"
-      ),
-      vrais_negatifs = sum(
-        .pred_non_terminee_7_jours < seuil &
-          verite == "terminee_7_jours"
-      ),
-      faux_negatifs = sum(
-        .pred_non_terminee_7_jours < seuil &
-          verite == "non_terminee_7_jours"
-      ),
-      sensibilite = vrais_positifs / (vrais_positifs + faux_negatifs),
-      specificite = vrais_negatifs / (vrais_negatifs + faux_positifs),
-      precision = vrais_positifs / (vrais_positifs + faux_positifs)
-    )
-}
-
-map_dfr(
-  c(0.35, 0.50, 0.65),
-  ~ evaluer_seuil(predictions_test, seuil = .x)
-)
-```
-
-Questions:
-
-1. Quel seuil repère le plus de demandes non terminées dans les sept jours?
-2. Quel seuil mobilise le moins l'équipe de suivi?
-3. Quel type d'erreur augmente lorsque le seuil monte?
-
-## Mission 2: choisir sous contrainte
-
-Choisissez un des deux mandats.
-
-### Mandat A: capacité fixe
-
-L'équipe peut examiner au plus 20 % des demandes. Parmi les seuils compatibles, maximisez la sensibilité.
-
-```{r}
-#| eval: false
-table_seuils <- map_dfr(
-  seq(0.20, 0.80, by = 0.01),
-  ~ evaluer_seuil(predictions_test, seuil = .x)
-)
-
-table_seuils |>
-  filter(proportion_signalee <= 0.20) |>
-  slice_max(sensibilite, n = 1)
-```
-
-### Mandat B: coûts relatifs
-
-Un faux négatif reçoit un coût trois fois plus élevé qu'un faux positif. Ce rapport est une hypothèse à contester.
-
-```{r}
-#| eval: false
-table_couts <- table_seuils |>
-  mutate(
-    cout_total = faux_positifs + 3 * faux_negatifs
-  )
-
-table_couts |>
-  slice_min(cout_total, n = 1)
-```
-
-Questions:
-
-1. Quelle décision change lorsque la contrainte change?
-2. Qui devrait déterminer les coûts relatifs?
-3. Quelle information manque pour passer d'un exercice à une décision réelle?
-
-## Mission 3: vérifier les différences territoriales
-
-Calculez la fréquence observée, le risque prédit moyen et la proportion signalée par arrondissement.
-
-```{r}
-#| eval: false
-seuil_retenu <- 0.50
-
-audit_arrondissements <- predictions_test |>
-  group_by(arrondissement) |>
-  summarise(
-    n = n(),
-    frequence_observee = mean(
-      verite == "non_terminee_7_jours"
-    ),
-    risque_moyen = mean(.pred_non_terminee_7_jours),
-    proportion_signalee = mean(
-      .pred_non_terminee_7_jours >= seuil_retenu
-    ),
-    .groups = "drop"
-  ) |>
-  filter(n >= 50) |>
-  arrange(desc(proportion_signalee))
-
-audit_arrondissements
-```
-
-Une différence territoriale ne démontre pas une différence de qualité. Elle peut refléter la composition des demandes, les processus, la mesure du statut ou des facteurs absents.
-
-## Mission 4: contester votre modèle
-
-Rédigez quatre objections:
-
-1. une objection statistique;
-2. une objection sur la construction de la cible;
-3. une objection opérationnelle;
-4. une objection de gouvernance ou d'équité.
-
-## Restitution
-
-En deux minutes, présentez:
-
-1. votre mandat;
-2. votre seuil;
-3. la proportion de demandes signalées;
-4. la sensibilité, la spécificité et la précision;
-5. l'erreur que votre choix accepte davantage;
-6. une condition qui empêcherait le déploiement.
-
-## Billet de sortie
-
-- Une mesure qui a changé ma décision est...
-- Une information manquante pour choisir un seuil réel est...
-- La différence entre classer et calibrer est...
+Pour ce jeu historique, les seuils servent à comprendre la classification. Ils ne représentent pas une règle d'intervention réelle.

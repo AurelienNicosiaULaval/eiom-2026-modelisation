@@ -36,9 +36,21 @@ Pour l'évaluation des modèles binaires, la courbe ROC est présentée comme un
 | [Documentation officielle de `lm()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/lm.html) | Arguments, formules, contrastes, valeurs manquantes et objet retourné. |
 | [De Cock, article original sur Ames](https://doi.org/10.1080/10691898.2011.11889627) | Construction du jeu, variables et intention pédagogique. |
 
+## Lectures complémentaires du jour 2
+
+| Lecture | Utilité |
+|---|---|
+| [James et ses collègues, chapitre 4](https://www.statlearning.com/) | Classification, régression logistique, rapports de cotes et frontière de décision. |
+| [Documentation officielle de `glm()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html) | Formule, famille binomiale, prédictions et objet ajusté. |
+| [Documentation de la famille binomiale](https://stat.ethz.ch/R-manual/R-devel/library/stats/help/family.html) | Réponse binaire, lien logit et conventions de codage dans R. |
+| [Kuhn et Silge, séparation entraînement-test](https://www.tmwr.org/splitting.html) | Budget de données, rôle du jeu test et reproductibilité du partage. |
+| [Fawcett, introduction aux courbes ROC](https://doi.org/10.1016/j.patrec.2005.10.010) | Sensibilité, spécificité, courbe ROC et interprétation de l'aire. |
+| [Van Calster et ses collègues](https://doi.org/10.1186/s12916-019-1466-7) | Pourquoi la calibration doit être examinée séparément de la discrimination. |
+| [Documentation CRAN de `titanic`](https://CRAN.R-project.org/package=titanic) | Provenance, structure et variables du jeu `titanic_train`. |
+
 ## Sources de données
 
-Les données du jour 1 décrivent 2 930 ventes résidentielles à Ames, en Iowa, et sont accessibles dans le paquet R `AmesHousing` [@decock2011ames; @kuhn2020ameshousing]. Les demandes de services citoyennes utilisées ensuite proviennent du système 311 de la Ville de Montréal [@montreal2026requete311].
+Les données du jour 1 décrivent 2 930 ventes résidentielles à Ames, en Iowa, et sont accessibles dans le paquet R `AmesHousing` [@decock2011ames; @kuhn2020ameshousing]. Le jour 2 utilise l'échantillon individuel `titanic_train` du paquet `titanic` [@hendricks2015titanic]. Les demandes de services citoyennes utilisées au jour 3 proviennent du système 311 de la Ville de Montréal [@montreal2026requete311].
 
 ## Références
 

@@ -1,250 +1,433 @@
 ---
-title: "Tutoriel: probabilités, seuils et calibration"
-subtitle: "Demandes de services citoyennes 311 de Montréal"
+title: "Tutoriel du jour 2"
+subtitle: "Régression logistique avec les données Titanic"
 format:
   html:
     embed-resources: true
-    code-fold: false
+    toc: true
+    toc-depth: 3
 execute:
-  cache: false
+  echo: true
+  warning: false
+  message: false
 ---
 
 ## Objectif
 
-Estimer, avec les renseignements disponibles à la création, la probabilité qu'une requête 311 ne soit pas terminée dans les sept jours. Le modèle sera entraîné sur le passé et évalué sur une période ultérieure.
+Ce tutoriel construit et évalue une régression logistique de la survie enregistrée dans l'échantillon `titanic_train`. Il suit la même progression que la présentation et les trois missions:
 
-::: {.callout-important}
-La fenêtre de sept jours est une définition pédagogique commune. Elle ne constitue pas une norme de service officielle de la Ville de Montréal.
-:::
+1. comprendre la réponse binaire et la portée des données;
+2. passer de la probabilité à la cote et à la log-cote;
+3. ajuster le modèle et interpréter les rapports de cotes;
+4. produire des probabilités sur un jeu test;
+5. distinguer confusion, discrimination et calibration;
+6. choisir un seuil selon un mandat explicite;
+7. vérifier les conditions de validité et les limites.
 
-## 1. Charger les paquets et les données
+Les calculs restent accessibles. Les concepts nécessaires à une utilisation défendable du modèle sont néanmoins présentés au complet.
+
+## Carte théorique
+
+La régression logistique relie quatre objets qu'il faut garder distincts.
+
+| Objet | Question |
+|---|---|
+| Réponse binaire | Quel événement est observé pour chaque unité? |
+| Probabilité conditionnelle | Quelle probabilité est associée à un profil donné? |
+| Rapport de cotes | Comment les cotes changent-elles lorsque le profil change? |
+| Règle de seuil | À partir de quelle probabilité attribue-t-on une classe? |
+
+Le modèle produit d'abord une probabilité. La classe prédite n'apparaît qu'après le choix d'un seuil. Changer le seuil ne réajuste pas le modèle: cela modifie la décision construite à partir des mêmes probabilités.
+
+## Préparer l'environnement
 
 ```{r}
-# Load libraries
+#| label: setup
 library(tidyverse)
 library(tidymodels)
+library(titanic)
+library(janitor)
 library(broom)
+library(scales)
+library(patchwork)
 
-# Set graphical theme
-theme_set(theme_minimal(base_size = 13))
-
-# Import the fixed teaching extract
-requetes_311 <- read_csv(
-  "data/requetes_311_montreal_2024_eiom.csv",
-  show_col_types = FALSE
-) |>
-  mutate(
-    date_creation = as.Date(date_creation),
-    verite = factor(
-      issue_7_jours,
-      levels = c("non_terminee_7_jours", "terminee_7_jours")
-    )
-  ) |>
-  arrange(date_creation, identifiant_requete)
-
-glimpse(requetes_311)
+theme_set(theme_minimal(base_size = 14))
+tidymodels_prefer()
 ```
 
-Une ligne représente une demande de service, pas une personne. L'événement positif est une demande qui n'est pas enregistrée comme terminée dans les sept jours suivant sa création.
+Le paquet `titanic` fournit des observations individuelles issues du jeu utilisé pour la compétition Kaggle. Le tableau `titanic_train` contient l'indicateur de survie et plusieurs caractéristiques enregistrées pour 891 passagers [@hendricks2015titanic].
 
-## 2. Comprendre la réponse avant de modéliser
+## 1. Charger et documenter les données
 
 ```{r}
-requetes_311 |>
+data("titanic_train")
+
+titanic_eiom <- titanic_train |>
+  clean_names() |>
+  transmute(
+    passenger_id,
+    survie = survived,
+    verite = factor(
+      if_else(survived == 1, "survecu", "non_survecu"),
+      levels = c("non_survecu", "survecu")
+    ),
+    classe = factor(
+      pclass,
+      levels = c(3, 2, 1),
+      labels = c("3e", "2e", "1re")
+    ),
+    sexe = factor(
+      sex,
+      levels = c("male", "female"),
+      labels = c("homme", "femme")
+    ),
+    age,
+    tarif = fare,
+    famille_bord = sib_sp + parch,
+    embarquement = na_if(embarked, "")
+  )
+
+glimpse(titanic_eiom)
+```
+
+Une ligne représente un passager de cet échantillon. La population visée par une conclusion doit donc rester proche de ce fichier. Il ne s'agit pas d'un manifeste complet ni d'une base permettant de reconstituer toutes les circonstances du naufrage.
+
+La variable numérique `survie` sert à l'ajustement avec `glm()`. Le facteur `verite` sert aux mesures de classification. Dans les deux cas, l'événement positif est la survie enregistrée.
+
+## 2. Comprendre la réponse binaire
+
+```{r}
+titanic_eiom |>
   count(verite) |>
   mutate(proportion = n / sum(n))
 ```
 
+Dans cet échantillon, 342 passagers sur 891 sont enregistrés comme survivants, soit environ 38,4 %. Une règle qui prédit toujours `non_survecu` aurait donc une exactitude d'environ 61,6 %. Cette référence rappelle qu'une exactitude doit être comparée à une règle simple.
+
+Une réponse binaire vaut 0 ou 1 pour chaque passager. Une probabilité, elle, est une quantité comprise entre 0 et 1 qui décrit l'incertitude conditionnelle avant d'observer la réponse.
+
+Conceptuellement, le modèle suppose:
+
+$$
+Y_i \mid X_i \sim \operatorname{Bernoulli}(p_i),
+$$
+
+où $Y_i$ est la réponse du passager $i$, $X_i$ son profil et $p_i$ sa probabilité conditionnelle de survie enregistrée.
+
+## 3. Explorer sans confondre association et cause
+
 ```{r}
-requetes_311 |>
-  count(mois_creation, verite) |>
-  group_by(mois_creation) |>
+survie_sexe <- titanic_eiom |>
+  count(sexe, verite) |>
+  group_by(sexe) |>
   mutate(proportion = n / sum(n)) |>
-  filter(verite == "non_terminee_7_jours") |>
-  ggplot(aes(fct_inorder(mois_creation), proportion, group = 1)) +
-  geom_line(color = "#0f7c80", linewidth = 1) +
-  geom_point(color = "#b5222e", size = 2.5) +
-  scale_y_continuous(labels = scales::label_percent()) +
+  ggplot(aes(sexe, proportion, fill = verite)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = label_percent()) +
   labs(
     x = NULL,
-    y = "Proportion non terminée dans les sept jours"
-  ) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    y = "Proportion",
+    fill = "Survie enregistrée"
+  )
+
+survie_classe <- titanic_eiom |>
+  count(classe, verite) |>
+  group_by(classe) |>
+  mutate(proportion = n / sum(n)) |>
+  ggplot(aes(classe, proportion, fill = verite)) +
+  geom_col(position = "fill") +
+  scale_y_continuous(labels = label_percent()) +
+  labs(
+    x = "Classe",
+    y = "Proportion",
+    fill = "Survie enregistrée"
+  )
+
+survie_sexe + survie_classe
 ```
 
-La fréquence de la réponse peut varier dans le temps. Un partage aléatoire des lignes mélangerait le passé et le futur et donnerait une évaluation moins fidèle au scénario d'utilisation.
+Les proportions observées diffèrent fortement selon le sexe et la classe enregistrés. Ces graphiques montrent des associations marginales. Ils ne contrôlent pas l'âge, le tarif ou d'autres caractéristiques et ne démontrent pas un mécanisme causal.
 
-## 3. Définir le moment de prédiction
+Une formulation prudente est:
 
-Les prédicteurs retenus sont disponibles lors de la création:
+> Dans cet échantillon, la survie enregistrée est plus fréquente dans certains groupes.
 
-- jour et plage horaire;
-- type d'activité;
-- type de lieu;
-- arrondissement géographique;
-- canal d'origine.
+Une formulation non soutenue serait:
 
-Les variables suivantes arrivent après la création et sont interdites comme prédicteurs:
+> Changer artificiellement une caractéristique aurait produit la différence observée.
+
+## 4. Examiner les valeurs manquantes
 
 ```{r}
-variables_interdites <- c(
-  "dernier_statut",
-  "date_dernier_statut",
-  "delai_dernier_statut_jours",
-  "issue_7_jours"
+titanic_eiom |>
+  summarise(
+    lignes = n(),
+    age_manquant = sum(is.na(age)),
+    tarif_manquant = sum(is.na(tarif)),
+    embarquement_manquant = sum(is.na(embarquement))
+  )
+```
+
+L'âge manque pour 177 passagers. Pour garder le code du jour 2 lisible, le modèle commun utilise les 714 lignes complètes pour l'âge et les autres prédicteurs retenus.
+
+```{r}
+titanic_analyse <- titanic_eiom |>
+  drop_na(age, tarif, sexe, classe)
+
+nrow(titanic_analyse)
+```
+
+L'analyse en cas complets n'est pas neutre. Elle est acceptable ici comme simplification pédagogique, mais une analyse substantielle devrait étudier pourquoi l'âge manque et comparer des stratégies d'imputation. Une disparition de lignes peut modifier la population effectivement analysée.
+
+## 5. Pourquoi ne pas ajuster une droite ordinaire?
+
+Un modèle linéaire appliqué directement à une réponse 0 ou 1 pose trois problèmes:
+
+1. ses valeurs ajustées peuvent sortir de l'intervalle $[0,1]$;
+2. la variance d'une réponse binaire dépend de sa probabilité;
+3. une différence fixe sur l'échelle linéaire ne représente pas bien la saturation près de 0 et de 1.
+
+La régression logistique conserve un prédicteur linéaire, mais elle ne le relie pas directement à la probabilité. Elle passe par une fonction de lien.
+
+## 6. Passer par trois échelles
+
+Pour une probabilité $p$:
+
+$$
+\text{cote} = \frac{p}{1-p},
+\qquad
+\text{logit}(p) = \log\left(\frac{p}{1-p}\right).
+$$
+
+La cote compare la probabilité de l'événement à celle de son complément. Une cote de 3 signifie trois possibilités favorables pour une possibilité défavorable. Elle correspond à une probabilité de $3/(1+3)=0{,}75$.
+
+```{r}
+tibble(
+  probabilite = c(0.10, 0.25, 0.50, 0.75, 0.90)
+) |>
+  mutate(
+    cote = probabilite / (1 - probabilite),
+    log_cote = log(cote)
+  )
+```
+
+La probabilité est bornée entre 0 et 1. La cote est positive. La log-cote peut prendre n'importe quelle valeur réelle. C'est sur cette dernière échelle que le modèle reste linéaire.
+
+## 7. Écrire le modèle logistique
+
+Le modèle commun est:
+
+$$
+\log\left(\frac{p_i}{1-p_i}\right)
+=
+\beta_0
++ \beta_1\,\text{sexe}_i
++ \beta_2\,\text{classe}_i
++ \beta_3\,\text{âge}_i
++ \beta_4\,\text{tarif}_i.
+$$
+
+La fonction logistique ramène ensuite le prédicteur linéaire $\eta_i$ à une probabilité:
+
+$$
+p_i = \frac{\exp(\eta_i)}{1+\exp(\eta_i)}.
+$$
+
+Le mot « linéaire » décrit la relation entre les prédicteurs et la log-cote, pas nécessairement la relation entre un prédicteur et la probabilité.
+
+## 8. Séparer entraînement et test
+
+```{r}
+set.seed(2026)
+
+partage <- initial_split(
+  titanic_analyse,
+  prop = 0.75,
+  strata = verite
 )
 
-variables_interdites
-```
-
-Utiliser le dernier statut pour prédire une cible construite à partir de ce statut serait une fuite d'information.
-
-## 4. Séparer le passé et le futur
-
-```{r}
-date_coupure <- as.Date("2024-10-01")
-
-entrainement <- requetes_311 |>
-  filter(date_creation < date_coupure)
-
-test <- requetes_311 |>
-  filter(date_creation >= date_coupure)
+entrainement <- training(partage)
+test <- testing(partage)
 
 tibble(
-  ensemble = c("Entraînement", "Test futur"),
+  ensemble = c("Entraînement", "Test"),
   n = c(nrow(entrainement), nrow(test)),
-  debut = c(min(entrainement$date_creation), min(test$date_creation)),
-  fin = c(max(entrainement$date_creation), max(test$date_creation)),
-  proportion_non_terminee = c(
-    mean(entrainement$verite == "non_terminee_7_jours"),
-    mean(test$verite == "non_terminee_7_jours")
+  proportion_survecu = c(
+    mean(entrainement$survie),
+    mean(test$survie)
   )
 )
 ```
 
-Le jeu test est postérieur au jeu d'entraînement. Cette séparation permet d'observer une éventuelle dérive de la fréquence ou des relations.
+Le modèle apprend ses coefficients sur 535 lignes. Les 179 lignes de test servent à évaluer les probabilités sur des observations qui n'ont pas contribué à l'ajustement.
 
-## 5. Préparer les prédicteurs sans regarder le test
+La stratification stabilise la proportion de l'événement dans les deux ensembles. Le germe fixe rend le partage reproductible. Le test doit rester fermé pendant le choix de la formule, sinon il cesse d'être une évaluation honnête [@kuhn2022tmwr].
+
+## 9. Estimer par vraisemblance
+
+En régression linéaire ordinaire, les moindres carrés minimisent une somme de résidus au carré. En régression logistique, les coefficients sont généralement estimés par maximum de vraisemblance.
+
+L'idée est simple:
+
+> choisir les coefficients qui rendent les réponses 0 et 1 observées aussi plausibles que possible sous le modèle.
+
+Une observation survivante contribue davantage à la vraisemblance si sa probabilité prédite est élevée. Une observation non survivante contribue davantage si cette probabilité est faible. Le calcul numérique est effectué par `glm()`; aucune dérivation n'est nécessaire pour interpréter le résultat.
+
+## 10. Ajuster avec `glm()`
 
 ```{r}
-recette_logistique <- recipe(
-  verite ~
-    jour_semaine +
-    plage_horaire +
-    activite +
-    type_lieu +
-    arrondissement +
-    provenance,
-  data = entrainement
-) |>
-  step_novel(
-    all_nominal_predictors(),
-    new_level = "Nouveau"
-  ) |>
-  step_unknown(
-    all_nominal_predictors(),
-    new_level = "Non précisé"
-  ) |>
-  step_other(
-    activite,
-    threshold = 0.01,
-    other = "Autres activités"
-  ) |>
-  step_other(
-    type_lieu,
-    threshold = 0.01,
-    other = "Autres lieux"
-  ) |>
-  step_other(
-    arrondissement,
-    threshold = 0.005,
-    other = "Autres territoires"
-  ) |>
-  step_other(
-    provenance,
-    threshold = 0.005,
-    other = "Autres canaux"
-  ) |>
-  step_zv(all_predictors())
+modele_logistique <- glm(
+  survie ~ sexe + classe + age + tarif,
+  data = entrainement,
+  family = binomial()
+)
 
-recette_logistique
+summary(modele_logistique)
 ```
 
-Les niveaux rares, manquants ou nouveaux sont traités à l'intérieur de l'entraînement. Le jeu test n'apprend aucune règle de préparation.
+L'argument `family = binomial()` indique une réponse binaire et utilise le lien logit par défaut. Les catégories de référence sont `homme` pour le sexe et `3e` pour la classe.
 
-## 6. Ajuster la régression logistique
+La sortie `summary()` présente les coefficients sur l'échelle des log-cotes. Cette échelle est essentielle au modèle, mais elle est rarement la plus intuitive pour communiquer une association.
 
-```{r}
-specification_logistique <- logistic_reg() |>
-  set_engine("glm")
+## 11. Lire les rapports de cotes
 
-workflow_logistique <- workflow() |>
-  add_recipe(recette_logistique) |>
-  add_model(specification_logistique)
-
-ajustement_logistique <- workflow_logistique |>
-  fit(data = entrainement)
-
-ajustement_logistique
-```
-
-Le modèle estime
+L'exponentielle d'un coefficient produit un rapport de cotes:
 
 $$
-\log\left(\frac{p}{1-p}\right)
-= \beta_0 + \beta_1 X_1 + \cdots + \beta_p X_p,
+\operatorname{OR}_j = \exp(\beta_j).
 $$
 
-où $p$ est la probabilité qu'une demande ne soit pas terminée dans les sept jours.
-
-## 7. Lire les rapports de cotes avec prudence
-
 ```{r}
-rapports_cotes <- extract_fit_engine(ajustement_logistique) |>
-  tidy() |>
+rapports_cotes <- tidy(modele_logistique) |>
   mutate(
     conf.low = estimate - qnorm(0.975) * std.error,
     conf.high = estimate + qnorm(0.975) * std.error,
-    across(c(estimate, conf.low, conf.high), exp)
-  ) |>
-  filter(term != "(Intercept)") |>
-  arrange(desc(abs(log(estimate))))
+    across(
+      c(estimate, conf.low, conf.high),
+      exp
+    )
+  )
 
-rapports_cotes |>
-  filter(str_detect(term, "^(plage_horaire|provenance)")) |>
-  select(term, estimate, conf.low, conf.high, p.value) |>
-  arrange(term)
+rapports_cotes
 ```
 
-Le tableau affiche toutes les modalités des familles `plage_horaire` et `provenance`; l'objet `rapports_cotes` conserve les autres coefficients. Un rapport de cotes compare deux profils qui diffèrent sur une modalité, toutes les autres variables incluses étant maintenues constantes. Les intervalles affichés sont des intervalles de Wald à 95 %. Ils décrivent une association conditionnelle, pas un effet causal ni la qualité intrinsèque d'un arrondissement.
+Pour `sexefemme`, le rapport compare femmes et hommes, à classe, âge et tarif identiques. Pour `classe1re`, il compare 1re et 3e classe, toutes les autres variables du modèle étant maintenues constantes.
 
-## 8. Prédire sur la période future
+Un rapport de cotes:
+
+- supérieur à 1 indique des cotes plus élevées;
+- inférieur à 1 indique des cotes plus faibles;
+- égal à 1 indique l'absence de différence conditionnelle sur cette échelle.
+
+Il ne s'agit ni d'un rapport de probabilités, ni d'une différence de points de pourcentage, ni d'une preuve causale.
+
+## 12. Adapter l'unité d'une variable continue
+
+Le rapport de cotes associé à l'âge porte sur une année. Pour une différence de dix ans:
 
 ```{r}
-predictions_test <- bind_cols(
-  test |>
-    select(date_creation, mois_creation, arrondissement, verite),
-  predict(
-    ajustement_logistique,
-    new_data = test,
-    type = "prob"
-  )
+or_age_10 <- exp(10 * coef(modele_logistique)[["age"]])
+or_age_10
+```
+
+La formulation correcte est:
+
+> À sexe, classe et tarif identiques, dix années supplémentaires sont associées à des cotes de survie enregistrée multipliées par la valeur calculée.
+
+Cette interprétation suppose une relation linéaire entre l'âge et la log-cote. Elle ne garantit pas que la même pente soit adéquate pour les très jeunes enfants et les adultes plus âgés.
+
+## 13. Distinguer coefficient, intervalle et valeur p
+
+Le coefficient décrit une direction et une taille sur l'échelle logit. Son exponentielle donne le rapport de cotes. L'intervalle de confiance décrit l'incertitude d'estimation sous les hypothèses du modèle. La valeur p examine la compatibilité avec l'absence d'association conditionnelle.
+
+Une petite valeur p ne garantit pas:
+
+1. une grande différence de probabilité;
+2. une bonne prédiction hors échantillon;
+3. une bonne calibration;
+4. une importance historique ou pratique;
+5. une interprétation causale.
+
+Inversement, une incertitude importante peut venir d'un échantillon restreint, de groupes rares, de redondance entre prédicteurs ou d'une forme mal spécifiée.
+
+## 14. Revenir aux probabilités
+
+Deux profils permettent de voir pourquoi un rapport de cotes n'est pas une différence de probabilités.
+
+```{r}
+profils <- tibble(
+  profil = c("Homme, 3e classe", "Femme, 3e classe"),
+  sexe = factor(
+    c("homme", "femme"),
+    levels = levels(entrainement$sexe)
+  ),
+  classe = factor(
+    c("3e", "3e"),
+    levels = levels(entrainement$classe)
+  ),
+  age = c(30, 30),
+  tarif = c(15, 15)
 )
 
+profils |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = profils,
+      type = "response"
+    )
+  ) |>
+  select(profil, probabilite_survie)
+```
+
+La variation de probabilité dépend de tous les termes qui déterminent le profil de départ. Un même rapport de cotes peut correspondre à une petite différence près de 0, à une différence plus grande au centre de l'échelle, puis à une petite différence près de 1.
+
+## 15. Produire les probabilités du test
+
+```{r}
+predictions_test <- test |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = test,
+      type = "response"
+    )
+  )
+
 predictions_test |>
+  select(
+    passenger_id,
+    verite,
+    sexe,
+    classe,
+    age,
+    probabilite_survie
+  ) |>
   slice_head(n = 10)
 ```
 
-## 9. Évaluer un seuil de 0,5
+Une probabilité élevée n'est pas une certitude. Elle signifie que le profil reçoit une valeur plus proche de 1 sous le modèle ajusté. La qualité de ces probabilités doit être vérifiée sur le test.
+
+## 16. Transformer une probabilité en classe
+
+Un seuil $s$ définit une règle:
+
+$$
+\widehat{Y} =
+\begin{cases}
+1, & \widehat{p} \ge s,\\
+0, & \widehat{p} < s.
+\end{cases}
+$$
 
 ```{r}
 predictions_05 <- predictions_test |>
   mutate(
-    .pred_class = factor(
+    classe_predite = factor(
       if_else(
-        .pred_non_terminee_7_jours >= 0.5,
-        "non_terminee_7_jours",
-        "terminee_7_jours"
+        probabilite_survie >= 0.50,
+        "survecu",
+        "non_survecu"
       ),
       levels = levels(verite)
     )
@@ -253,35 +436,97 @@ predictions_05 <- predictions_test |>
 conf_mat(
   predictions_05,
   truth = verite,
-  estimate = .pred_class
+  estimate = classe_predite
 )
 ```
 
+Le seuil de 0,50 est facile à expliquer, mais il n'est pas une propriété naturelle de la régression logistique. Il donne implicitement le même poids aux deux catégories d'erreur et ignore les contraintes du mandat.
+
+## 17. Lire les mesures de classification
+
 ```{r}
-metric_set(accuracy, bal_accuracy, sens, spec, ppv, npv)(
+metric_set(accuracy, sens, spec, ppv, npv)(
   predictions_05,
   truth = verite,
-  estimate = .pred_class,
-  event_level = "first"
+  estimate = classe_predite,
+  event_level = "second"
 )
 ```
 
-Un seuil de 0,5 n'est pas une propriété naturelle du problème. Il traduit implicitement un rapport entre les conséquences des deux types d'erreur.
+Les mesures répondent à des questions différentes:
 
-## 10. Mesurer discrimination et calibration
+| Mesure | Question |
+|---|---|
+| Exactitude | Quelle proportion de toutes les classes est correcte? |
+| Sensibilité | Parmi les survivants enregistrés, quelle proportion est détectée? |
+| Spécificité | Parmi les non-survivants enregistrés, quelle proportion est écartée? |
+| Précision | Parmi les prédictions positives, quelle proportion correspond à un survivant enregistré? |
+| Valeur prédictive négative | Parmi les prédictions négatives, quelle proportion correspond à un non-survivant enregistré? |
+
+La sensibilité et la précision ont des dénominateurs différents. Les confondre change la question.
+
+## 18. Comparer les seuils
 
 ```{r}
-mesures_probabilistes <- metric_set(
-  roc_auc,
-  pr_auc,
-  brier_class
+evaluer_seuil <- function(donnees, seuil) {
+  donnees |>
+    summarise(
+      seuil = seuil,
+      proportion_positive = mean(probabilite_survie >= seuil),
+      sensibilite = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(survie == 1),
+      specificite = sum(
+        probabilite_survie < seuil & survie == 0
+      ) / sum(survie == 0),
+      precision = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(probabilite_survie >= seuil)
+    )
+}
+
+table_seuils <- map_dfr(
+  seq(0.10, 0.90, by = 0.05),
+  ~ evaluer_seuil(predictions_test, .x)
 )
 
-mesures_probabilistes(
+table_seuils |>
+  filter(seuil %in% c(0.30, 0.50, 0.70))
+```
+
+```{r}
+table_seuils |>
+  select(seuil, sensibilite, specificite, precision) |>
+  pivot_longer(
+    -seuil,
+    names_to = "mesure",
+    values_to = "valeur"
+  ) |>
+  ggplot(aes(seuil, valeur, color = mesure)) +
+  geom_line(linewidth = 1) +
+  scale_y_continuous(labels = label_percent()) +
+  labs(x = "Seuil", y = "Valeur", color = NULL)
+```
+
+Lorsque le seuil augmente, les prédictions positives deviennent moins nombreuses. La sensibilité diminue généralement, tandis que la spécificité et parfois la précision augmentent. Le seuil doit donc être relié à une erreur plus grave, à une capacité ou à un usage analytique.
+
+Dans le contexte Titanic, ce choix sert uniquement à comprendre la mécanique de classification. Il ne reconstitue pas une décision de sauvetage.
+
+## 19. Mesurer la discrimination
+
+```{r}
+roc_auc(
   predictions_test,
   truth = verite,
-  .pred_non_terminee_7_jours,
-  event_level = "first"
+  probabilite_survie,
+  event_level = "second"
+)
+
+pr_auc(
+  predictions_test,
+  truth = verite,
+  probabilite_survie,
+  event_level = "second"
 )
 ```
 
@@ -289,124 +534,158 @@ mesures_probabilistes(
 roc_curve(
   predictions_test,
   truth = verite,
-  .pred_non_terminee_7_jours,
-  event_level = "first"
+  probabilite_survie,
+  event_level = "second"
 ) |>
   autoplot() +
   coord_equal()
 ```
 
-L'aire ROC mesure la capacité de classement. Elle ne vérifie pas si une probabilité prédite de 0,40 correspond réellement à environ 40 % d'événements.
+L'aire ROC mesure la probabilité qu'un survivant enregistré choisi au hasard reçoive un score plus élevé qu'un non-survivant enregistré choisi au hasard [@fawcett2006roc]. Elle évalue le classement sur tous les seuils.
+
+Une aire ROC élevée ne garantit ni des probabilités exactes, ni un seuil utile, ni une validité causale. La courbe précision-rappel complète l'analyse lorsque l'événement est rare ou que les faux positifs sont particulièrement importants.
+
+## 20. Examiner la calibration
+
+La calibration compare probabilités prédites et fréquences observées. Si un ensemble de profils reçoit une probabilité moyenne de 0,70, une bonne calibration signifie qu'environ 70 % de ces observations connaissent l'événement, dans des données comparables.
 
 ```{r}
 calibration <- predictions_test |>
-  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
-  group_by(groupe) |>
+  mutate(groupe = ntile(probabilite_survie, 5)) |>
   summarise(
-    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
-    frequence_observee = mean(verite == "non_terminee_7_jours"),
+    probabilite_moyenne = mean(probabilite_survie),
+    frequence_observee = mean(survie),
     n = n(),
-    .groups = "drop"
+    .by = groupe
   )
 
-ggplot(calibration, aes(probabilite_moyenne, frequence_observee)) +
-  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "#52606d") +
+ggplot(
+  calibration,
+  aes(probabilite_moyenne, frequence_observee)
+) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = 2,
+    color = "#52606d"
+  ) +
   geom_line(color = "#0f7c80") +
   geom_point(aes(size = n), color = "#b5222e") +
   coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
   labs(
     x = "Probabilité moyenne prédite",
     y = "Fréquence observée",
-    size = "Nombre de requêtes"
+    size = "n"
   )
 ```
 
-Cette représentation groupée est pédagogique. Une étude complète examinerait aussi la pente, l'interception et l'incertitude de calibration [@vancalster2019calibration].
+La représentation groupée est pédagogique et instable avec seulement 179 lignes de test. Elle permet de repérer des écarts grossiers, pas de déclarer définitivement le modèle calibré.
 
-## 11. Choisir un seuil selon une décision
-
-Supposons qu'une petite équipe puisse examiner préventivement les demandes présentant un risque élevé de ne pas être terminées dans les sept jours.
+Le score de Brier est l'erreur quadratique moyenne des probabilités:
 
 ```{r}
-evaluer_seuil <- function(donnees, seuil, cout_fp = 1, cout_fn = 3) {
-  donnees |>
-    summarise(
-      seuil = seuil,
-      proportion_signalee = mean(.pred_non_terminee_7_jours >= seuil),
-      vrais_positifs = sum(
-        .pred_non_terminee_7_jours >= seuil &
-          verite == "non_terminee_7_jours"
-      ),
-      faux_positifs = sum(
-        .pred_non_terminee_7_jours >= seuil &
-          verite == "terminee_7_jours"
-      ),
-      vrais_negatifs = sum(
-        .pred_non_terminee_7_jours < seuil &
-          verite == "terminee_7_jours"
-      ),
-      faux_negatifs = sum(
-        .pred_non_terminee_7_jours < seuil &
-          verite == "non_terminee_7_jours"
-      ),
-      sensibilite = vrais_positifs / (vrais_positifs + faux_negatifs),
-      specificite = vrais_negatifs / (vrais_negatifs + faux_positifs),
-      precision = vrais_positifs / (vrais_positifs + faux_positifs),
-      cout_total = cout_fp * faux_positifs + cout_fn * faux_negatifs
+score_brier <- predictions_test |>
+  summarise(
+    brier = mean(
+      (survie - probabilite_survie)^2
     )
-}
-
-table_seuils <- map_dfr(
-  seq(0.20, 0.80, by = 0.01),
-  ~ evaluer_seuil(
-    predictions_test,
-    seuil = .x,
-    cout_fp = 1,
-    cout_fn = 3
   )
+
+score_brier
+```
+
+Un score de 0 correspondrait à des probabilités parfaites. Le score combine discrimination et calibration; il doit être comparé à une référence et interprété avec la prévalence [@vancalster2019calibration].
+
+## 21. Conditions de validité
+
+Une régression logistique simple demande plus qu'un appel réussi à `glm()`.
+
+| Condition | Pourquoi elle importe | Vérification possible |
+|---|---|---|
+| Réponse et unité correctement définies | Une mauvaise cible rend le modèle incohérent | documentation et protocole |
+| Observations suffisamment indépendantes | La dépendance réduit l'information effective | plan de collecte et structure des groupes |
+| Forme adéquate sur l'échelle logit | Une pente linéaire peut masquer une courbure | résidus, lissages et extensions |
+| Absence de séparation complète | Des groupes parfaitement séparés rendent certains coefficients instables | avertissements, cellules vides et coefficients extrêmes |
+| Prédicteurs sans redondance extrême | La colinéarité élargit l'incertitude | tableaux, VIF et stabilité |
+| Nombre suffisant d'événements | Les estimations et mesures doivent être stables | effectifs par groupe et intervalles |
+| Données pertinentes pour l'usage | Une bonne performance interne ne garantit pas le transfert | validation externe et comparaison des populations |
+
+La normalité des prédicteurs n'est pas une hypothèse de la régression logistique. La normalité des résidus n'est pas exigée comme en régression linéaire gaussienne.
+
+## 22. Diagnostics et extensions
+
+Des résidus de déviance importants peuvent signaler des observations mal représentées. Le levier et la distance de Cook aident à repérer les cas qui influencent fortement les coefficients. Aucun seuil automatique ne justifie une suppression.
+
+```{r}
+diagnostic <- augment(modele_logistique) |>
+  transmute(
+    ligne = row_number(),
+    valeur_ajustee = .fitted,
+    residu_deviance = .resid,
+    levier = .hat,
+    distance_cook = .cooksd
+  )
+
+diagnostic |>
+  slice_max(distance_cook, n = 8)
+```
+
+Deux extensions naturelles sont:
+
+```{r}
+#| eval: false
+modele_interaction <- glm(
+  survie ~ sexe * classe + age + tarif,
+  data = entrainement,
+  family = binomial()
 )
 
-table_seuils |>
-  slice_min(cout_total, n = 5)
+modele_age_courbe <- glm(
+  survie ~ sexe + classe + splines::ns(age, df = 3) + tarif,
+  data = entrainement,
+  family = binomial()
+)
 ```
 
-```{r}
-ggplot(table_seuils, aes(seuil, cout_total)) +
-  geom_line(color = "#b5222e", linewidth = 1.1) +
-  geom_point(
-    data = slice_min(table_seuils, cout_total, n = 1),
-    color = "#0f7c80",
-    size = 3
-  ) +
-  labs(x = "Seuil", y = "Coût hypothétique total")
-```
+L'interaction autorise l'association du sexe à varier selon la classe. La spline autorise une relation non linéaire entre l'âge et la log-cote. Ces extensions doivent être justifiées, comparées hors échantillon et communiquées sans masquer leur complexité.
 
-Les coûts sont hypothétiques. Un seuil réel exigerait de connaître la capacité de suivi, les conséquences des erreurs et les objectifs propres aux différents services.
+## 23. Ce que le modèle ne permet pas d'affirmer
 
-## 12. Vérifier la stabilité temporelle
+Ce prototype ne permet pas de conclure:
 
-```{r}
-predictions_test |>
-  group_by(mois_creation) |>
-  summarise(
-    n = n(),
-    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
-    frequence_observee = mean(verite == "non_terminee_7_jours"),
-    .groups = "drop"
-  )
-```
+1. qu'un prédicteur a causé la survie ou le décès;
+2. que les coefficients décrivent tous les passagers du Titanic;
+3. que la suppression des âges manquants est sans conséquence;
+4. qu'un seuil de 0,50 est historiquement ou moralement optimal;
+5. que la performance resterait identique dans une autre population;
+6. que les variables disponibles résument toutes les circonstances.
 
-Une différence entre probabilités moyennes et fréquences observées peut signaler une calibration imparfaite, un changement de processus ou une composition différente des demandes.
+Le jeu est utile parce que les variables sont faciles à expliquer. Cette accessibilité ne doit pas faire oublier la portée limitée de l'échantillon et la gravité du contexte historique.
 
-## 13. Contrôler l'applicabilité
+## 24. Sept questions avant de défendre le modèle
 
-Avant tout usage réel, il faudrait vérifier:
+1. Quelle est l'unité statistique et quel événement est positif?
+2. Sur quelle population les données permettent-elles de conclure?
+3. Comment les valeurs manquantes ont-elles été traitées?
+4. Que signifie chaque rapport de cotes et quelle est sa catégorie de référence?
+5. La performance a-t-elle été évaluée sur des données réservées?
+6. Le modèle discrimine-t-il et calibre-t-il suffisamment pour l'usage visé?
+7. Quel seuil, quelle erreur et quelle limite accompagnent la conclusion?
 
-1. que chaque prédicteur existe réellement au moment de la création;
-2. que la définition de la réponse correspond à un objectif opérationnel légitime;
-3. que les processus de traitement sont comparables entre unités;
-4. que les demandes transférées vers d'autres systèmes sont comprises;
-5. que les erreurs n'entraînent pas une allocation inéquitable des ressources;
-6. que discrimination et calibration sont surveillées dans le temps.
+## Lectures complémentaires
 
-Ce tutoriel établit un prototype méthodologique. Il ne constitue ni une évaluation des services municipaux ni une recommandation de déploiement.
+| Lecture | Pour approfondir |
+|---|---|
+| [James et ses collègues, chapitre 4](https://www.statlearning.com/) | Régression logistique, classification et interprétation. |
+| [Documentation officielle de `glm()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html) | Syntaxe, famille, prédictions et objet retourné. |
+| [Familles de modèles dans R](https://stat.ethz.ch/R-manual/R-devel/library/stats/help/family.html) | Lien logit, réponse binomiale et codage de l'événement. |
+| [Kuhn et Silge, séparation des données](https://www.tmwr.org/splitting.html) | Jeu d'entraînement, jeu test et budget de données. |
+| [Fawcett, courbes ROC](https://doi.org/10.1016/j.patrec.2005.10.010) | Sensibilité, spécificité et aire ROC. |
+| [Van Calster et ses collègues, calibration](https://doi.org/10.1186/s12916-019-1466-7) | Calibration, discrimination et utilité prédictive. |
+| [Documentation CRAN de `titanic`](https://CRAN.R-project.org/package=titanic) | Structure, variables et provenance du jeu. |
+
+## Conclusion
+
+Une régression logistique ne se résume pas à transformer une réponse en 0 et 1. Elle relie une probabilité conditionnelle à des prédicteurs, impose une échelle d'interprétation, demande une validation hors échantillon et ne produit une classe qu'après un choix de seuil.
+
+Une conclusion défendable précise donc la population, les catégories de référence, l'incertitude, la discrimination, la calibration, le seuil et les limites.

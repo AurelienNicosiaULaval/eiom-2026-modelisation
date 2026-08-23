@@ -1,0 +1,223 @@
+---
+title: "Mission finale: évaluer avant de conclure"
+subtitle: "Confusion, seuil, discrimination et calibration"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit ouvrir le jeu test, évaluer les probabilités produites par le modèle et choisir un seuil adapté à un mandat analytique. Vous terminerez par une fiche modèle de six phrases.
+
+Durée: 25 minutes.
+
+Production: une matrice de confusion, une comparaison de seuils, un diagnostic de calibration et la fiche modèle.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. distinguer une probabilité d'une classe prédite;
+2. identifier vrais positifs, faux positifs, vrais négatifs et faux négatifs;
+3. expliquer le compromis entre sensibilité et spécificité;
+4. interpréter une aire ROC sans la confondre avec la calibration;
+5. choisir un seuil à partir d'un mandat, et non par automatisme.
+
+## Trois familles de questions
+
+Avant de calculer, classez chaque résultat:
+
+| Famille | Question | Exemple |
+|---|---|---|
+| classification | que produit un seuil précis? | sensibilité à 0,50 |
+| discrimination | les positifs reçoivent-ils des scores plus élevés? | aire ROC |
+| calibration | les probabilités correspondent-elles aux fréquences? | graphique par groupes |
+
+Un modèle peut bien classer et mal calibrer. Il peut aussi être bien calibré en moyenne tout en séparant faiblement les deux catégories.
+
+## 1. Produire les probabilités de test
+
+```{r}
+#| eval: false
+predictions_test <- test |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = test,
+      type = "response"
+    )
+  )
+```
+
+Ces probabilités sont hors échantillon: les lignes n'ont pas servi à estimer les coefficients.
+
+## 2. Évaluer un seuil de 0,50
+
+```{r}
+#| eval: false
+predictions_05 <- predictions_test |>
+  mutate(
+    classe_predite = factor(
+      if_else(
+        probabilite_survie >= 0.50,
+        "survecu",
+        "non_survecu"
+      ),
+      levels = levels(verite)
+    )
+  )
+
+conf_mat(
+  predictions_05,
+  truth = verite,
+  estimate = classe_predite
+)
+
+metric_set(accuracy, sens, spec, ppv)(
+  predictions_05,
+  truth = verite,
+  estimate = classe_predite,
+  event_level = "second"
+)
+```
+
+Expliquez chaque dénominateur avec des mots. La sensibilité part des survivants enregistrés; la précision part des prédictions positives.
+
+Pour vérifier votre lecture, complétez:
+
+> Parmi les passagers enregistrés comme survivants, le modèle en détecte ...
+
+> Parmi les passagers classés positifs par le modèle, ... sont enregistrés comme survivants.
+
+Ces deux phrases n'ont pas le même point de départ.
+
+## 3. Comparer trois seuils
+
+```{r}
+#| eval: false
+evaluer_seuil <- function(donnees, seuil) {
+  donnees |>
+    summarise(
+      seuil = seuil,
+      proportion_positive = mean(probabilite_survie >= seuil),
+      sensibilite = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(survie == 1),
+      specificite = sum(
+        probabilite_survie < seuil & survie == 0
+      ) / sum(survie == 0),
+      precision = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(probabilite_survie >= seuil)
+    )
+}
+
+table_seuils <- map_dfr(
+  c(0.30, 0.50, 0.70),
+  ~ evaluer_seuil(predictions_test, .x)
+)
+
+table_seuils
+```
+
+Choisissez un mandat:
+
+1. repérer la plus grande proportion possible de survivants enregistrés;
+2. limiter les faux positifs;
+3. conserver un compromis entre sensibilité et spécificité.
+
+Indiquez le seuil retenu et l'erreur que ce choix accepte davantage.
+
+Votre justification doit avoir la forme:
+
+> Pour le mandat ..., nous retenons le seuil ... parce qu'il privilégie la mesure ...; en contrepartie, il augmente ...
+
+L'exactitude la plus élevée ne suffit pas à justifier le seuil. Elle additionne des erreurs qui pourraient ne pas avoir la même importance pour le mandat.
+
+## 4. Mesurer le classement
+
+```{r}
+#| eval: false
+roc_auc(
+  predictions_test,
+  truth = verite,
+  probabilite_survie,
+  event_level = "second"
+)
+
+roc_curve(
+  predictions_test,
+  truth = verite,
+  probabilite_survie,
+  event_level = "second"
+) |>
+  autoplot()
+```
+
+L'aire ROC mesure le classement de paires positives et négatives sur l'ensemble des seuils. Elle ne dit pas si une probabilité de 0,70 correspond à une fréquence observée proche de 70 %.
+
+Une aire ROC de 0,50 correspond à un classement sans information. Une valeur de 1 correspondrait à un classement parfait dans les données évaluées. Les valeurs intermédiaires ne donnent pas directement l'exactitude d'un seuil particulier.
+
+## 5. Examiner la calibration
+
+```{r}
+#| eval: false
+calibration <- predictions_test |>
+  mutate(groupe = ntile(probabilite_survie, 5)) |>
+  summarise(
+    probabilite_moyenne = mean(probabilite_survie),
+    frequence_observee = mean(survie),
+    n = n(),
+    .by = groupe
+  )
+
+ggplot(
+  calibration,
+  aes(probabilite_moyenne, frequence_observee)
+) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  geom_line() +
+  geom_point(aes(size = n)) +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(
+    x = "Probabilité moyenne prédite",
+    y = "Fréquence observée"
+  )
+```
+
+Avec seulement 179 lignes de test, cette courbe groupée est exploratoire. Décrivez les écarts sans déclarer la calibration parfaite ou définitivement mauvaise.
+
+Si les points sont au-dessus de la diagonale, la fréquence observée dépasse la probabilité moyenne et le modèle sous-estime le risque dans ce groupe. S'ils sont sous la diagonale, il le surestime. Vérifiez toujours les axes avant d'utiliser ces mots.
+
+## 6. Rédiger la fiche modèle
+
+Écrivez exactement six phrases:
+
+1. unité, échantillon et réponse;
+2. prédicteurs et stratégie pour les âges manquants;
+3. association conditionnelle principale;
+4. résultat de discrimination et observation de calibration;
+5. seuil retenu, mandat et erreur davantage acceptée;
+6. limite historique, causale ou de généralisation.
+
+La fiche doit pouvoir être comprise sans la sortie R. Arrondissez les mesures à trois décimales et traduisez chaque nombre en une phrase. Une bonne fiche ne cherche pas à présenter le modèle comme définitif.
+
+## Erreurs fréquentes à éviter
+
+1. Annoncer une aire ROC comme pourcentage de bonnes classes.
+2. Choisir 0,50 uniquement parce que c'est la valeur par défaut.
+3. Confondre sensibilité et précision.
+4. Décrire cinq groupes de calibration comme une preuve définitive.
+5. Oublier que les âges manquants ont été exclus avant le partage.
+6. Transformer le seuil en règle historique de sauvetage.
+
+## Vérification finale
+
+- Toutes les mesures sont calculées sur `test`.
+- L'événement positif est `survecu`.
+- La sensibilité et la précision ne sont pas confondues.
+- Le seuil est relié à un mandat.
+- L'aire ROC et la calibration répondent à deux questions différentes.
+- La petite taille du test est mentionnée.
+- La fiche ne transforme pas l'exercice en règle réelle de sauvetage.

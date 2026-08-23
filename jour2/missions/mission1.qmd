@@ -1,0 +1,195 @@
+---
+title: "Mission 1: comprendre avant d'ajuster"
+subtitle: "Titanic, réponse binaire et formule de modèle"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit préparer un premier modèle de la survie enregistrée dans l'échantillon Titanic. Avant d'ajuster quoi que ce soit, vous devez préciser ce qu'une ligne représente, décrire la réponse, examiner les valeurs manquantes et proposer une formule lisible.
+
+Durée: 25 minutes.
+
+Production: deux graphiques, une formule et un verdict de trois phrases.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. distinguer une réponse binaire d'une probabilité;
+2. nommer l'événement considéré comme positif;
+3. repérer une valeur manquante susceptible de modifier l'échantillon d'analyse;
+4. décrire une association sans la présenter comme un effet causal;
+5. choisir des prédicteurs compréhensibles avant de voir les coefficients.
+
+## Organisation de l'équipe
+
+La personne pilote charge et transforme les données. La personne interprète lit les tableaux et graphiques. La personne vérificatrice contrôle les niveaux de référence. La personne sceptique note les limites de l'échantillon.
+
+Avant d'exécuter le code, chaque personne écrit une prédiction: quel groupe devrait présenter la plus forte proportion de survie enregistrée et quelle variable risque de contenir le plus de valeurs manquantes? Ces prédictions ne sont pas des conclusions. Elles servent à rendre visibles les attentes qui pourraient influencer la lecture des graphiques.
+
+## Repères sur les variables
+
+| Variable | Signification dans le fichier | Type |
+|---|---|---|
+| `survie` | 1 si la survie est enregistrée, 0 sinon | binaire |
+| `classe` | 1re, 2e ou 3e classe | catégorielle |
+| `sexe` | sexe enregistré | catégorielle |
+| `age` | âge en années | quantitative |
+| `tarif` | tarif enregistré | quantitative |
+| `famille_bord` | nombre de proches enregistrés à bord | dénombrement |
+
+## 1. Charger et préparer
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(titanic)
+library(janitor)
+
+data("titanic_train")
+
+titanic_eiom <- titanic_train |>
+  clean_names() |>
+  transmute(
+    passenger_id,
+    survie = survived,
+    verite = factor(
+      if_else(survived == 1, "survecu", "non_survecu"),
+      levels = c("non_survecu", "survecu")
+    ),
+    classe = factor(
+      pclass,
+      levels = c(3, 2, 1),
+      labels = c("3e", "2e", "1re")
+    ),
+    sexe = factor(
+      sex,
+      levels = c("male", "female"),
+      labels = c("homme", "femme")
+    ),
+    age,
+    tarif = fare,
+    famille_bord = sib_sp + parch
+  )
+```
+
+Vérifiez que le tableau contient 891 lignes. Une ligne représente un passager de l'échantillon, pas tous les passagers du navire.
+
+La réponse `survie` prend seulement les valeurs 0 et 1. Elle ne constitue pas encore une probabilité. La proportion calculée sur plusieurs lignes est une fréquence observée; le modèle logistique produira plus tard une probabilité conditionnelle pour un profil.
+
+## 2. Décrire la réponse
+
+```{r}
+#| eval: false
+titanic_eiom |>
+  count(verite) |>
+  mutate(proportion = n / sum(n))
+```
+
+Questions:
+
+1. Combien de passagers sont enregistrés comme survivants?
+2. Quelle serait l'exactitude d'une règle qui prédit toujours la catégorie majoritaire?
+3. Cette règle fournirait-elle une probabilité utile?
+
+## 3. Vérifier les données manquantes
+
+```{r}
+#| eval: false
+titanic_eiom |>
+  summarise(
+    lignes = n(),
+    age_manquant = sum(is.na(age)),
+    tarif_manquant = sum(is.na(tarif))
+  )
+```
+
+Pour le modèle commun, nous exclurons les lignes où l'âge manque. Cette stratégie est simple, mais elle réduit l'échantillon et peut introduire un biais si l'absence de l'âge est liée au profil du passager ou à la survie.
+
+Comparez mentalement les deux populations:
+
+1. les 891 passagers du fichier initial;
+2. les 714 passagers qui disposent d'un âge et entrent dans le modèle.
+
+La seconde n'est pas automatiquement interchangeable avec la première. Votre verdict doit indiquer clairement laquelle est décrite.
+
+## 4. Comparer des groupes
+
+```{r}
+#| eval: false
+graphique_sexe <- titanic_eiom |>
+  count(sexe, verite) |>
+  group_by(sexe) |>
+  mutate(proportion = n / sum(n)) |>
+  ggplot(aes(sexe, proportion, fill = verite)) +
+  geom_col(position = "fill") +
+  labs(x = NULL, y = "Proportion", fill = "Survie enregistrée")
+
+graphique_classe <- titanic_eiom |>
+  count(classe, verite) |>
+  group_by(classe) |>
+  mutate(proportion = n / sum(n)) |>
+  ggplot(aes(classe, proportion, fill = verite)) +
+  geom_col(position = "fill") +
+  labs(x = "Classe", y = "Proportion", fill = "Survie enregistrée")
+
+graphique_sexe
+graphique_classe
+```
+
+Décrivez seulement ce qui est visible. Utilisez « est associée à » plutôt que « cause » ou « protège ».
+
+Une bonne description répond à trois questions:
+
+1. quelle comparaison est visible?
+2. dans quel sens va la différence?
+3. quelle variable ou information absente pourrait encore modifier cette comparaison?
+
+Ne comparez pas seulement la hauteur totale des barres, puisque chaque barre est normalisée à 100 %. Comparez la part correspondant à `survecu` dans chaque groupe.
+
+## 5. Proposer la formule
+
+Le modèle commun sera:
+
+```{r}
+#| eval: false
+survie ~ sexe + classe + age + tarif
+```
+
+Avant de voir les résultats, prédisez le signe attendu de chaque coefficient en tenant compte des catégories de référence: homme et 3e classe.
+
+Le graphique bivarié et le futur coefficient ne répondent pas exactement à la même question. Le graphique compare les proportions brutes. Le coefficient comparera des passagers ayant les mêmes valeurs sur les autres variables du modèle.
+
+## Si votre équipe bloque
+
+Revenez à cette grille:
+
+| Élément | Réponse attendue |
+|---|---|
+| unité | un passager de l'échantillon |
+| événement positif | survie enregistrée |
+| référence du sexe | homme |
+| référence de la classe | 3e classe |
+| population du modèle | lignes complètes pour les quatre prédicteurs |
+| langage permis | association observée ou conditionnelle |
+| langage interdit | effet causal ou règle réelle de sauvetage |
+
+## Votre verdict
+
+Rédigez exactement trois phrases:
+
+1. unité, réponse et fréquence de survie enregistrée;
+2. association graphique principale;
+3. limite liée aux valeurs manquantes ou à la portée historique.
+
+## Vérification avant de remettre
+
+- Les deux graphiques affichent des proportions, pas seulement des effectifs.
+- L'événement positif est clairement nommé.
+- La formule contient quatre prédicteurs lisibles.
+- Les niveaux de référence sont identifiés.
+- Aucune phrase ne prétend établir une causalité.
+- La limite des 177 âges manquants est mentionnée.

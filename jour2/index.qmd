@@ -1,6 +1,6 @@
 ---
-title: "Jour 2: estimer un risque"
-subtitle: "Régression logistique, calibration et seuils"
+title: "Jour 2: expliquer une probabilité"
+subtitle: "Régression logistique avec les données Titanic"
 format:
   html:
     embed-resources: true
@@ -8,39 +8,50 @@ format:
 
 ## Question directrice
 
-Avec les renseignements disponibles lors de la création, peut-on estimer la probabilité qu'une demande 311 ne soit pas terminée dans les sept jours, puis transformer cette probabilité en décision responsable?
+Comment relier les caractéristiques enregistrées d'un passager à une probabilité de survie, puis évaluer ce que cette probabilité permet réellement d'affirmer?
+
+Le jeu Titanic rend la réponse binaire et les variables faciles à comprendre. Il permet donc de concentrer la matinée sur les idées statistiques: probabilité, cote, logit, rapport de cotes, validation, seuil et calibration.
 
 ## Objectifs
 
 À la fin de la matinée, vous pourrez:
 
-1. définir une cible binaire à un moment de prédiction explicite;
-2. repérer une fuite d'information;
-3. ajuster une régression logistique avec un prétraitement reproductible;
-4. interpréter un rapport de cotes sans conclusion causale;
-5. distinguer discrimination, calibration et classification;
-6. choisir un seuil selon des coûts ou une capacité explicites;
-7. évaluer un modèle sur une période ultérieure.
+1. définir une réponse binaire et son événement d'intérêt;
+2. expliquer pourquoi une droite ordinaire convient mal à une probabilité;
+3. passer de la probabilité à la cote et à la log-cote;
+4. ajuster une régression logistique avec `glm()`;
+5. interpréter un rapport de cotes de manière conditionnelle;
+6. distinguer significativité, importance pratique et qualité prédictive;
+7. évaluer un modèle sur un jeu test;
+8. lire une matrice de confusion, une courbe ROC et une courbe de calibration;
+9. choisir un seuil en fonction d'un mandat explicite;
+10. nommer les limites historiques, statistiques et causales de l'analyse.
 
 ## Matériel
 
 <div class="resource-grid">
-<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Probabilités, moment de prédiction et décisions.</span></a>
-<a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Un modèle logistique évalué sur une période future.</span></a>
-<a class="resource-card" href="pratique.html"><span class="card-title">Mission seuil</span><span class="card-copy">Choisir sous contrainte, puis contester son propre choix.</span></a>
+<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Le fil théorique et participatif de toute la matinée.</span></a>
+<a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Toutes les notions, le code reproductible et les lectures.</span></a>
+<a class="resource-card" href="pratique.html"><span class="card-title">Missions</span><span class="card-copy">Trois productions cumulatives réalisées en équipe.</span></a>
 </div>
 
 ## Production de la matinée
 
-Une première fiche de modèle contenant:
+Les trois missions construisent une fiche modèle de six phrases:
 
-1. la cible et la fenêtre temporelle;
-2. le moment où la prédiction serait produite;
-3. les variables autorisées et interdites;
-4. les résultats de discrimination et de calibration;
-5. un seuil relié à une capacité ou à des coûts;
-6. une limite de gouvernance.
+1. l'unité statistique et la réponse;
+2. la formule et la population couverte;
+3. une association conditionnelle exprimée par un rapport de cotes;
+4. une mesure de discrimination et une mesure de calibration;
+5. un seuil relié à un mandat;
+6. une limite qui interdit une interprétation trop forte.
 
-## Données
+## Données et prudence
 
-Une ligne représente une demande de service 311 créée en 2024. La cible pédagogique indique si le dernier statut enregistré n'est pas `Terminée` dans les sept jours. Cette fenêtre n'est pas une norme officielle. Les processus et certains attributs peuvent varier entre arrondissements [@montreal2026requete311].
+Le paquet R `titanic` fournit `titanic_train`, un échantillon individuel de 891 passagers utilisé dans un contexte d'apprentissage automatique. Il contient notamment la survie enregistrée, la classe, le sexe, l'âge, le tarif et des variables familiales [@hendricks2015titanic].
+
+Ces données servent ici à enseigner la modélisation. Elles ne représentent pas un manifeste complet et ne permettent pas de reconstituer toute l'histoire du naufrage. Les associations observées ne démontrent pas des effets causaux et le choix d'un seuil n'est pas présenté comme une règle de sauvetage.
+
+## Lectures suggérées
+
+Pour reprendre les notions après la séance, consultez le chapitre 4 de [An Introduction to Statistical Learning](https://www.statlearning.com/), la documentation officielle de [`glm()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/glm.html), le chapitre sur la [séparation entraînement-test](https://www.tmwr.org/splitting.html) et la [documentation du jeu Titanic](https://CRAN.R-project.org/package=titanic).

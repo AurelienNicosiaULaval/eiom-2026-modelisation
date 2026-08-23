@@ -13,7 +13,7 @@ format:
 
 # Modéliser pour comprendre et prédire
 
-<p class="hero-lead">Trois matinées actives pour construire, diagnostiquer et comparer des modèles en R, à partir de données publiques québécoises.</p>
+<p class="hero-lead">Trois matinées actives pour construire, diagnostiquer et comparer des modèles en R, à partir de jeux de données accessibles et documentés.</p>
 
 <div class="hero-meta">
 <span>26 au 28 août 2026</span>
@@ -53,6 +53,6 @@ Chaque matinée propose donc un trajet essentiel et des prolongements pour les p
 
 ## Données et posture
 
-Nous travaillerons avec les ventes immobilières d'Ames, en Iowa, et les demandes de services citoyennes 311 de Montréal créées en 2024 [@decock2011ames; @montreal2026requete311]. Les modèles seront présentés comme des outils descriptifs ou prédictifs. Ils ne suffisent pas, à eux seuls, à établir une relation causale.
+Nous travaillerons avec les ventes immobilières d'Ames, les données de passagers du Titanic et les demandes de services citoyennes 311 de Montréal [@decock2011ames; @hendricks2015titanic; @montreal2026requete311]. Les modèles seront présentés comme des outils descriptifs ou prédictifs. Ils ne suffisent pas, à eux seuls, à établir une relation causale.
 
 La sixième édition de l'EIOM se déroule en présence à l'Université Laval du 24 au 28 août 2026. Le parcours officiel vise un niveau intermédiaire à avancé et repose sur R [@eiom2026].

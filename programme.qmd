@@ -37,15 +37,15 @@ Au terme du parcours, chaque personne aura produit:
 
 | Temps relatif | Activité | Production |
 |---|---|---|
-| 0:00 à 0:15 | Enchère de probabilités | Seuils intuitifs |
-| 0:15 à 0:45 | Probabilité, cote et logit | Traduction entre trois échelles |
-| 0:45 à 1:15 | Démonstration sur les requêtes 311 | Modèle logistique |
-| 1:15 à 1:30 | Prévalence et matrice de confusion | Baseline explicite |
-| 1:30 à 1:45 | Pause | |
-| 1:45 à 2:20 | ROC, rappel-précision, Brier et calibration | Tableau de performance |
-| 2:20 à 3:05 | Mission en équipes: choisir un seuil | Décision justifiée |
-| 3:05 à 3:25 | Construire une fiche de modèle | Première version |
-| 3:25 à 3:30 | Billet de sortie | Une décision, une limite |
+| 0:00 à 0:35 | Titanic, réponse binaire et trois échelles | Question et prédictions initiales |
+| 0:35 à 1:00 | Mission 1: explorer avant d'ajuster | Graphiques et formule de modèle |
+| 1:00 à 1:25 | Modèle logistique et rapports de cotes | Interprétation conditionnelle |
+| 1:25 à 1:35 | Pause | |
+| 1:35 à 2:00 | Mission 2: ajuster et interpréter | Deux interprétations et une probabilité |
+| 2:00 à 2:30 | Test, confusion et compromis de seuil | Tableau de performance |
+| 2:30 à 2:55 | Mission 3: évaluer et choisir | Seuil justifié et calibration |
+| 2:55 à 3:20 | ROC, calibration et conditions de validité | Fiche modèle |
+| 3:20 à 3:30 | Restitution et billet de sortie | Une décision, une limite |
 
 ## Vendredi 28 août: modèles d'apprentissage automatique
 

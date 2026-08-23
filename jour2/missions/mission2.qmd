@@ -1,0 +1,202 @@
+---
+title: "Mission 2: ajuster et interpréter"
+subtitle: "Logit, rapports de cotes et probabilités"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit ajuster le modèle commun sur les données d'entraînement, interpréter deux rapports de cotes et comparer les probabilités prédites pour deux profils. Le jeu test doit rester inutilisé jusqu'à la mission finale.
+
+Durée: 25 minutes.
+
+Production: deux interprétations conditionnelles, deux probabilités et une limite.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. expliquer pourquoi `family = binomial()` est utilisé;
+2. distinguer coefficient sur l'échelle logit et rapport de cotes;
+3. interpréter un rapport de cotes en nommant la comparaison et les variables maintenues constantes;
+4. reconnaître qu'un rapport de cotes n'est pas une différence de probabilités;
+5. produire une probabilité pour un profil clairement défini.
+
+## Repère théorique avant le code
+
+Le modèle n'ajuste pas directement une droite à la probabilité. Il ajuste une combinaison linéaire à la log-cote:
+
+$$
+\log\left(\frac{p}{1-p}\right)
+= \beta_0 + \beta_1X_1 + \cdots + \beta_kX_k.
+$$
+
+L'exponentielle d'un coefficient produit un rapport de cotes. Ce rapport est multiplicatif sur les cotes. Il ne donne pas directement une variation de probabilité, parce que la fonction logistique est courbe.
+
+## 1. Reprendre les données et créer le partage
+
+Reprenez l'objet `titanic_eiom` de la mission 1.
+
+```{r}
+#| eval: false
+library(tidymodels)
+library(broom)
+
+titanic_analyse <- titanic_eiom |>
+  drop_na(age, tarif, sexe, classe)
+
+set.seed(2026)
+partage <- initial_split(
+  titanic_analyse,
+  prop = 0.75,
+  strata = verite
+)
+
+entrainement <- training(partage)
+test <- testing(partage)
+
+nrow(entrainement)
+nrow(test)
+```
+
+Le partage est stratifié pour conserver approximativement la même proportion de survie enregistrée. Une fois le partage fixé, le jeu test reste fermé.
+
+Le jeu d'entraînement est l'espace de travail. Le jeu test est une réserve destinée à une évaluation finale. Si votre équipe consulte la performance du test et change ensuite la formule, elle a utilisé le test pour apprendre et l'évaluation devient trop optimiste.
+
+## 2. Ajuster le modèle logistique
+
+```{r}
+#| eval: false
+modele_logistique <- glm(
+  survie ~ sexe + classe + age + tarif,
+  data = entrainement,
+  family = binomial()
+)
+
+summary(modele_logistique)
+```
+
+`glm()` estime une combinaison linéaire sur l'échelle des log-cotes. La fonction logistique transforme ensuite cette quantité en probabilité comprise entre 0 et 1.
+
+Dans la sortie `summary()`:
+
+- `Estimate` est le coefficient sur l'échelle logit;
+- `Std. Error` décrit son incertitude estimée;
+- `z value` standardise le coefficient par son erreur type;
+- `Pr(>|z|)` est la valeur p associée au test de Wald.
+
+Ne cherchez pas à interpréter toutes les décimales. Commencez par le signe, la comparaison et l'unité.
+
+## 3. Transformer les coefficients
+
+```{r}
+#| eval: false
+table_rapports_cotes <- tidy(
+  modele_logistique,
+  exponentiate = TRUE,
+  conf.int = TRUE
+)
+
+table_rapports_cotes
+```
+
+Pour un rapport de cotes:
+
+- une valeur supérieure à 1 correspond à des cotes plus élevées;
+- une valeur inférieure à 1 correspond à des cotes plus faibles;
+- une valeur égale à 1 correspond à l'absence de différence sur cette échelle.
+
+L'intervalle de confiance aide à voir l'incertitude. S'il contient 1, les données restent compatibles avec l'absence d'association conditionnelle sur l'échelle des cotes, sous les hypothèses du modèle. Un intervalle étroit ne garantit toutefois ni importance pratique ni bonne prédiction.
+
+## 4. Interpréter deux termes
+
+Complétez les formulations.
+
+Pour `sexefemme`:
+
+> Dans l'échantillon d'entraînement, à classe, âge et tarif identiques, les cotes de survie enregistrée des femmes sont estimées à ... fois celles des hommes.
+
+Pour `age`, interprétez plutôt une différence de dix ans:
+
+```{r}
+#| eval: false
+or_age_10 <- exp(10 * coef(modele_logistique)[["age"]])
+or_age_10
+```
+
+> À sexe, classe et tarif identiques, dix années supplémentaires sont associées à des cotes de survie enregistrée multipliées par ...
+
+Ne transformez pas directement ces nombres en points de pourcentage. La différence de probabilité dépend du profil de départ.
+
+Utilisez cette grille pour vérifier une interprétation:
+
+| Question | Élément à nommer |
+|---|---|
+| Qui est comparé? | femme contre homme, ou dix ans supplémentaires |
+| Quelle est la référence? | homme ou âge initial |
+| Qu'est-ce qui est maintenu constant? | autres prédicteurs du modèle |
+| Sur quelle échelle? | cotes de survie enregistrée |
+| Quelle portée? | échantillon d'entraînement |
+
+## 5. Comparer deux profils
+
+```{r}
+#| eval: false
+profils <- tibble(
+  sexe = factor(
+    c("homme", "femme"),
+    levels = levels(entrainement$sexe)
+  ),
+  classe = factor(
+    c("3e", "3e"),
+    levels = levels(entrainement$classe)
+  ),
+  age = c(30, 30),
+  tarif = c(15, 15)
+)
+
+profils |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = profils,
+      type = "response"
+    )
+  )
+```
+
+Questions:
+
+1. Pourquoi la différence de probabilité n'est-elle pas égale au rapport de cotes?
+2. Quelle population ces deux prédictions peuvent-elles raisonnablement représenter?
+3. Pourquoi ne faut-il pas encore juger la performance avec les données d'entraînement?
+
+Les profils sont volontairement identiques sauf pour le sexe. Cette comparaison illustre la transformation d'un rapport de cotes en probabilités conditionnelles. Elle ne représente pas une intervention réelle qui changerait le sexe d'une personne.
+
+## Erreurs fréquentes à éviter
+
+1. Dire « 11 fois plus de probabilité » au lieu de parler des cotes.
+2. Oublier que `classe1re` est comparée à la 3e classe.
+3. Interpréter le tarif sans préciser son unité.
+4. Utiliser le jeu test pour améliorer le modèle.
+5. Transformer une association historique en mécanisme causal.
+
+## Votre production
+
+Remettez:
+
+1. l'interprétation de `sexefemme`;
+2. l'interprétation de dix années d'âge;
+3. les deux probabilités prédites;
+4. une phrase qui refuse une conclusion causale ou une généralisation excessive.
+
+## Vérification avant de remettre
+
+- Le modèle a été ajusté seulement sur `entrainement`.
+- Les niveaux de référence sont homme et 3e classe.
+- Les mots « cotes » et « probabilité » ne sont pas utilisés comme synonymes.
+- Chaque interprétation nomme les autres variables maintenues constantes.
+- Les probabilités sont entre 0 et 1.
+- Le jeu test n'a pas servi à modifier le modèle.
