@@ -42,6 +42,7 @@ jobs:
             any::rpart
             any::scales
             any::tidymodels
+            any::titanic
             any::tidyverse
             any::xml2
 
