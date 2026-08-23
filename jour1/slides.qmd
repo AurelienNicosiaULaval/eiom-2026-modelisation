@@ -2,6 +2,8 @@
 title: "Comprendre une relation"
 subtitle: "Régression linéaire multiple et diagnostics"
 author: "Aurélien Nicosia"
+suppress-bibliography: true
+link-citations: false
 format:
   revealjs:
     theme: [simple, ../styles/slides.scss]

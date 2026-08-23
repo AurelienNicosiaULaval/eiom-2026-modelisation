@@ -2,6 +2,8 @@
 title: "Estimer un risque"
 subtitle: "Régression logistique, calibration et seuils"
 author: "Aurélien Nicosia"
+suppress-bibliography: true
+link-citations: false
 format:
   revealjs:
     theme: [simple, ../styles/slides.scss]

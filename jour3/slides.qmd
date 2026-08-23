@@ -2,6 +2,8 @@
 title: "Comparer sans se raconter d'histoire"
 subtitle: "Arbres, forêts aléatoires et validation temporelle"
 author: "Aurélien Nicosia"
+suppress-bibliography: true
+link-citations: false
 format:
   revealjs:
     theme: [simple, ../styles/slides.scss]
