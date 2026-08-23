@@ -8,7 +8,7 @@ format:
 
 ## Consigne
 
-Formez des équipes de trois ou quatre personnes. Chaque équipe commence à une station, puis change après 10 à 12 minutes. Conservez une phrase de verdict par station.
+Formez des équipes de trois ou quatre personnes. L'animateur attribue une station à chaque équipe. Vous avez 18 minutes pour produire un verdict, une preuve, une limite et une prochaine action. Si vous terminez plus tôt, commencez une seconde station.
 
 ## Mise en route
 

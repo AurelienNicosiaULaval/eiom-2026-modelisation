@@ -244,7 +244,7 @@ En équipes, choisissez une station:
 3. résidus, variance et influence;
 4. interprétation et limites causales.
 
-Vous avez 12 minutes, puis 90 secondes pour défendre votre verdict.
+Vous avez 18 minutes, puis 3 minutes pour défendre votre verdict.
 
 ## Le piège du dénominateur commun
 
