@@ -14,6 +14,22 @@ Durée: 25 minutes.
 
 Production: deux interprétations et une comparaison d'intervalles.
 
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. lire un tableau de coefficients sans confondre estimation et preuve causale;
+2. conserver l'unité du prédicteur et de la réponse dans une interprétation;
+3. expliquer ce que signifie « à caractéristiques identiques »;
+4. distinguer un intervalle pour une moyenne d'un intervalle pour une nouvelle vente;
+5. expliquer ce que le VIF permet de vérifier et ce qu'il ne vérifie pas.
+
+Votre réponse finale doit être compréhensible par une personne qui ne voit pas la sortie R.
+
+## Mode de travail
+
+Une personne lit les résultats, une personne vérifie les formulations et une personne joue le rôle d'un destinataire sceptique. Cette dernière doit demander pour chaque phrase: « Quelles variables sont maintenues constantes? », « Quelle est l'unité? » et « Cette phrase est-elle causale? »
+
 ## 1. Ajuster le modèle commun
 
 ```{r}
@@ -42,6 +58,10 @@ tidy(modele_prix, conf.int = TRUE)
 glance(modele_prix)
 ```
 
+`tidy()` fournit un coefficient, une erreur-type, une statistique de test, une valeur p et un intervalle pour chaque terme. `glance()` résume le modèle entier, notamment son ajustement et son nombre d'observations. Ne commencez pas par la valeur p: commencez par le signe, la taille et l'unité du coefficient.
+
+Vérifiez que le modèle utilise 2 930 ventes. Le modèle commun ne contient pas de valeurs manquantes pour les quatre prédicteurs retenus.
+
 ## 2. Interpréter conditionnellement
 
 Complétez les deux phrases suivantes avec les résultats du modèle:
@@ -55,6 +75,12 @@ Questions de contrôle:
 2. Pourquoi le coefficient de l'ordonnée à l'origine n'a-t-il pas ici une interprétation immobilière utile?
 3. Pourquoi « associé » est-il préférable à « cause »?
 
+Une bonne interprétation contient quatre composantes: la variation du prédicteur, la variation moyenne estimée de la réponse, les autres variables maintenues constantes et la population observée. Une phrase peut être numériquement exacte tout en restant incomplète si l'une de ces composantes manque.
+
+::: {.callout-note}
+L'ordonnée à l'origine est nécessaire pour calculer les valeurs ajustées, mais elle correspond ici à une combinaison hors du domaine observé. Tous les coefficients ne méritent donc pas une interprétation substantielle.
+:::
+
 ## 3. Vérifier la colinéarité
 
 ```{r}
@@ -63,6 +89,8 @@ check_collinearity(modele_prix)
 ```
 
 Décidez si les coefficients semblent gravement déstabilisés par la colinéarité. Appuyez votre verdict sur les valeurs observées, pas sur une règle isolée.
+
+Le VIF examine la redondance linéaire entre les prédicteurs. Il ne vérifie ni la linéarité de la moyenne, ni la variance des résidus, ni l'indépendance, ni l'absence de variables importantes omises. Votre verdict doit rester limité à la colinéarité.
 
 ## 4. Prédire une propriété type
 
@@ -88,6 +116,10 @@ Répondez:
 3. Lequel convient au prix d'une nouvelle propriété individuelle?
 4. Pourquoi le second est-il beaucoup plus large?
 
+L'intervalle de confiance porte sur une moyenne conditionnelle. L'intervalle de prédiction ajoute la variabilité d'une vente individuelle autour de cette moyenne. Les deux supposent que la propriété type appartient raisonnablement au domaine des données et que la structure du modèle est adéquate.
+
+Ces intervalles ne constituent pas une validation hors échantillon. Le modèle a été ajusté avec les mêmes ventes qui servent à le résumer. La mesure de l'erreur sur de nouvelles données sera étudiée plus explicitement au jour 3.
+
 ::: {.callout-tip collapse="true"}
 ## Prolongement
 
@@ -103,3 +135,14 @@ Produisez trois éléments:
 3. une phrase expliquant quel intervalle vous communiqueriez pour une nouvelle vente.
 
 Conservez-les pour la mission finale.
+
+## Vérification avant de remettre
+
+Relisez vos trois phrases avec cette grille:
+
+1. la surface est-elle exprimée par 100 pieds carrés plutôt que par une unité implicite?
+2. le prix est-il exprimé en dollars?
+3. les autres variables maintenues constantes sont-elles nommées ou clairement résumées?
+4. le mot « associé » remplace-t-il toute affirmation causale?
+5. l'intervalle choisi correspond-il à une nouvelle vente individuelle?
+6. avez-vous expliqué pourquoi cet intervalle est plus large?

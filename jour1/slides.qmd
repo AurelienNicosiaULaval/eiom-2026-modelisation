@@ -166,6 +166,11 @@ Une ligne n'est ni une personne, ni un quartier, ni la valeur actuelle d'une pro
 
 ::: {.notes}
 4 minutes. Demander ce qu'une ligne représente. Insister sur vente observée, lieu et période. Les résultats ne s'appliquent pas automatiquement à Québec en 2026.
+
+[Sources]
+
+- De Cock, D. (2011), https://doi.org/10.1080/10691898.2011.11889627
+- Kuhn et Silge, données Ames, https://www.tmwr.org/ames.html
 :::
 
 ## Le prix brut est asymétrique
@@ -192,20 +197,20 @@ Médiane: `r dollar(median(ames$sale_price), accuracy = 1)`
 3 minutes. Faire décrire l'asymétrie. Ne pas transformer automatiquement. Dire que le modèle en dollars est intuitif et que le logarithme deviendra une analyse comparative.
 :::
 
-## Choisir peu de variables, mais les choisir pour une raison
+## Le type d'une variable détermine son rôle dans le modèle
 
-| Variable | Rôle possible | Unité |
+| Variable | Type | Traitement retenu |
 |---|---|---|
-| `gr_liv_area` | taille | pied carré |
-| `overall_qual` | qualité globale | score 1 à 10 |
-| `year_built` | ancienneté approximative | année |
-| `garage_cars` | équipement | nombre de places |
-| `neighborhood` | contexte spatial | catégorie |
+| `gr_liv_area` | quantitative | pente par pied carré |
+| `overall_qual` | ordinale | score de 1 à 10 |
+| `year_built` | quantitative | pente par année |
+| `garage_cars` | dénombrement | pente par place |
+| `neighborhood` | nominale | indicatrices et référence |
 
 Raisons défendables: connaissance du problème, preuve graphique, contrôle d'un facteur et interprétabilité.
 
 ::: {.notes}
-4 minutes. Faire choisir individuellement quatre variables. Demander ensuite si une liste de 80 variables serait automatiquement meilleure. Réponse: non, surtout sans objectif ni validation.
+4 minutes. Faire choisir individuellement quatre variables. Nommer l'hypothèse imposée par le score de qualité et expliquer qu'une variable nominale produit des comparaisons avec une catégorie de référence. Demander si 80 variables seraient automatiquement meilleures. Réponse: non, surtout sans objectif ni validation.
 :::
 
 ## Simple et multiple ne répondent pas à la même question
@@ -230,20 +235,29 @@ $$
 4 minutes. Demander ce qui change dans la comparaison. Dans le modèle multiple, on compare conditionnellement à qualité, année et garage identiques.
 :::
 
-## Numérique, ordinale ou catégorielle?
+## Les moindres carrés choisissent la droite qui réduit les erreurs
 
-`overall_qual` possède dix niveaux ordonnés. Nous la codons de 1 à 10, ce qui suppose un écart régulier entre deux niveaux successifs.
+Pour chaque vente:
 
-`neighborhood` est nominale. R créerait une comparaison avec un quartier de référence pour chaque niveau.
+$$
+\text{résidu}_i = y_i - \widehat{y}_i
+$$
 
-Questions à poser:
+`lm()` choisit les coefficients qui minimisent:
 
-1. L'ordre existe-t-il?
-2. L'écart d'un niveau a-t-il un sens constant?
-3. Une catégorie de référence est-elle claire?
+$$
+\sum_{i=1}^{n}(y_i-\widehat{y}_i)^2.
+$$
+
+Les grandes erreurs comptent davantage parce qu'elles sont élevées au carré.
 
 ::: {.notes}
-4 minutes. Faire donner un exemple de variable nominale et ordinale. Nommer explicitement l'hypothèse imposée par le codage 1 à 10.
+4 minutes. Dessiner une observation, sa valeur ajustée et le segment vertical qui forme le résidu. Expliquer le principe sans dérivation matricielle. Préciser que minimiser l'erreur dans les données observées ne garantit pas la performance future.
+
+[Sources]
+
+- Documentation officielle de `lm()`, https://stat.ethz.ch/R-manual/R-devel/library/stats/html/lm.html
+- OpenIntro, chapitre 7, https://www.openintro.org/go/?id=biostat0
 :::
 
 ::: {.question-slide}
@@ -406,21 +420,24 @@ Réserve: le codage 1 à 10 suppose le même incrément moyen entre tous les niv
 4 minutes. Demander quelle hypothèse vient du codage numérique. Réponse: effet linéaire constant d'un point supplémentaire.
 :::
 
-## L'ordonnée à l'origine n'est pas toujours une histoire
+## Significatif, important et utile sont trois jugements distincts
 
-Le modèle calcule un prix lorsque:
+| Élément | Question posée |
+|---|---|
+| Coefficient | Quelle est la direction et la taille estimée? |
+| Intervalle de confiance | Quelles valeurs restent compatibles avec le modèle? |
+| Valeur p | Les données sont-elles compatibles avec un coefficient nul? |
+| Utilité pratique | L'effet est-il substantiel dans le contexte? |
 
-1. la surface vaut 0;
-2. la qualité vaut 0;
-3. l'année vaut 0;
-4. le garage vaut 0.
-
-Cette combinaison est hors du domaine des données.
-
-<div class="takeaway">Un coefficient peut être mathématiquement nécessaire sans être substantiellement interprétable.</div>
+<div class="takeaway">Une petite valeur p ne garantit ni un effet important, ni une bonne prédiction.</div>
 
 ::: {.notes}
-2 minutes. Montrer pourquoi l'ordonnée à l'origine est négative sans parler de modèle « faux ». Mentionner le centrage comme prolongement.
+3 minutes. Expliquer que les valeurs p dépendent aussi de la taille d'échantillon et des hypothèses. Insister sur le coefficient, son intervalle, les unités et la question. L'intercept hors domaine reste expliqué dans le tutoriel.
+
+[Sources]
+
+- James et ses collègues, chapitre 3, https://www.statlearning.com/
+- OpenIntro, chapitre 7, https://www.openintro.org/go/?id=biostat0
 :::
 
 ## Colinéarité: les prédicteurs se répètent-ils?
@@ -519,17 +536,25 @@ Résidus, influence, transformation et décision
 Transition. Dire que le tableau de coefficients ne peut pas révéler seul les défauts du modèle.
 :::
 
-## Quatre questions diagnostiques
+## Les hypothèses ne protègent pas toutes la même conclusion
 
-1. La moyenne est-elle correctement structurée?
-2. La variance des résidus est-elle à peu près stable?
-3. Les résidus extrêmes dominent-ils l'inférence?
-4. Quelques ventes changent-elles fortement les coefficients?
+| Hypothèse | Vérification principale |
+|---|---|
+| moyenne correctement structurée | résidus contre valeurs ajustées |
+| variance à peu près constante | largeur verticale des résidus |
+| erreurs indépendantes | plan de collecte, temps et espace |
+| queues compatibles avec l'inférence | diagramme quantile-quantile |
+| absence de domination individuelle | influence et sensibilité |
 
-À cela s'ajoutent la dépendance entre observations et la pertinence de la population visée.
+La normalité concerne les erreurs, pas la distribution brute du prix.
 
 ::: {.notes}
-3 minutes. Associer chaque question à un graphique ou une mesure: résidus ajustés, QQ, Cook et contexte de collecte.
+4 minutes. Relier chaque hypothèse à la conclusion qu'elle soutient. Expliquer que l'indépendance ne se lit pas uniquement dans un graphique. Mentionner que la normalité est surtout importante pour l'inférence exacte, alors que forme et variance affectent aussi les prédictions.
+
+[Sources]
+
+- James et ses collègues, chapitre 3, https://www.statlearning.com/
+- OpenIntro, chapitre 7, https://www.openintro.org/go/?id=biostat0
 :::
 
 ## Les résidus révèlent une structure
@@ -676,17 +701,22 @@ Les autres équipes peuvent seulement ajouter une nuance ou poser une question.
 3 minutes. Prendre trois équipes si le groupe est grand. Refuser les répétitions. Inscrire au tableau un résultat, une preuve et une limite.
 :::
 
-## Six questions à emporter
+## Sept questions à emporter
 
 1. Quelle est l'unité statistique?
 2. Quel est l'objectif: expliquer ou prédire?
 3. Pourquoi chaque variable est-elle dans le modèle?
 4. Les coefficients gardent-ils leurs unités et leurs conditions?
 5. Que montrent les résidus et l'influence?
-6. La conclusion dépasse-t-elle les données?
+6. Pour prédire, l'erreur a-t-elle été évaluée sur des données non utilisées pour ajuster?
+7. La conclusion dépasse-t-elle les données?
 
 ::: {.notes}
 1 minute. Lire rapidement la liste. Dire qu'elle s'appliquera demain à la régression logistique.
+
+[Sources]
+
+- Kuhn et Silge, flux de modélisation, https://www.tmwr.org/workflows
 :::
 
 ## À 12 h 15, votre modèle doit être défendable

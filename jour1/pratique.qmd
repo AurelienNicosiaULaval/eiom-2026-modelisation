@@ -10,6 +10,8 @@ format:
 
 Les missions sont réalisées en équipes de trois ou quatre personnes. Elles apparaissent à trois moments de la présentation. Pour chaque mission, votre équipe doit produire un résultat court à réutiliser dans la mission suivante.
 
+Chaque page peut être suivie sans consulter le corrigé. Elle contient le mandat, les objectifs d'apprentissage, les variables nécessaires, le code de départ, les questions d'interprétation et une grille de vérification avant la remise. Le [tutoriel complet](tutoriel.html) fournit les explications théoriques et les résultats détaillés si vous souhaitez reprendre le travail après la séance.
+
 <div class="resource-grid">
 <a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Explorer le prix et choisir un petit ensemble de prédicteurs.</span></a>
 <a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Ajuster, interpréter et produire une prédiction honnête.</span></a>
@@ -24,6 +26,18 @@ Les missions sont réalisées en équipes de trois ou quatre personnes. Elles ap
 2. une interprétation conditionnelle et une prédiction accompagnée de son incertitude;
 3. une fiche modèle de cinq phrases qui communique le résultat, le diagnostic et la limite.
 
+## Progression et responsabilités
+
+| Mission | Durée | Question dominante | Production |
+|---|---:|---|---|
+| 1 | 25 min | Que faut-il modéliser et pourquoi? | formule, graphique et trois phrases |
+| 2 | 25 min | Que signifient les coefficients et les intervalles? | deux interprétations et une décision prédictive |
+| finale | 20 min | Le modèle est-il assez stable pour l'usage prévu? | diagnostic et fiche de cinq phrases |
+
+Dans chaque équipe, répartissez au minimum trois rôles: exécution du code, surveillance des unités et rédaction. Changez de rôle entre les missions. Une personne doit toujours pouvoir expliquer le résultat sans lire la sortie R.
+
 ## Règle de travail
 
 Le code est un moyen de produire une preuve. Chaque réponse doit aussi comprendre une phrase interprétable sans consulter la sortie R.
+
+Une réponse est complète lorsqu'elle relie une question, une preuve visible et une limite. Une valeur numérique isolée, une valeur p ou un diagnostic nommé sans conséquence ne constitue pas une conclusion.

@@ -14,6 +14,22 @@ Durée: 20 minutes.
 
 Production: un verdict diagnostique et une fiche finale.
 
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. relier un graphique de résidus à une hypothèse précise;
+2. distinguer observation atypique, fort levier et observation influente;
+3. utiliser une analyse de sensibilité sans supprimer automatiquement des données;
+4. expliquer ce que la transformation logarithmique améliore et ce qu'elle change;
+5. convertir plusieurs sorties techniques en une décision courte et prudente.
+
+Le diagnostic n'est pas un concours visant à trouver un défaut. Il sert à décider quelles affirmations restent défendables, lesquelles doivent être nuancées et quelle vérification devrait suivre.
+
+## Organisation suggérée
+
+Attribuez trois responsabilités: lecture des graphiques, vérification des résultats numériques et rédaction de la fiche. La personne qui lit les graphiques doit d'abord décrire ce qu'elle voit sans employer les mots « bon », « mauvais », « valide » ou « invalide ».
+
 ## 1. Reprendre les deux modèles
 
 ```{r}
@@ -44,6 +60,8 @@ modele_log <- lm(
 )
 ```
 
+Les deux modèles utilisent les mêmes ventes et les mêmes caractéristiques. La comparaison isole donc surtout l'effet du changement d'échelle. Le modèle en dollars vise des différences absolues; le modèle logarithmique représente des différences relatives.
+
 ## 2. Regarder les résidus
 
 ```{r}
@@ -70,6 +88,15 @@ p_prix + p_log
 
 Pour chaque graphique, examinez la forme moyenne, l'étalement vertical et les observations extrêmes. Quel modèle produit le nuage le plus régulier?
 
+Utilisez les critères suivants:
+
+1. le nuage est-il centré autour de zéro?
+2. une courbure systématique demeure-t-elle?
+3. l'épaisseur verticale reste-t-elle comparable?
+4. quelques résidus dominent-ils l'échelle?
+
+Un graphique plus régulier ne rend pas automatiquement le modèle vrai. Il indique que la structure moyenne et la variance sont mieux représentées sur cette échelle.
+
 ## 3. Examiner l'influence
 
 ```{r}
@@ -90,6 +117,12 @@ Questions:
 2. Est-elle manifestement impossible, ou seulement inhabituelle?
 3. Quelle information faudrait-il vérifier avant de l'exclure?
 4. Pourquoi ne faut-il pas supprimer automatiquement toutes les observations signalées?
+
+Une observation influente est une observation dont la présence modifie sensiblement l'ajustement. Elle peut être parfaitement réelle. Avant de l'exclure, il faut vérifier la source, comprendre son contexte, comparer les conclusions avec et sans elle et documenter la décision.
+
+::: {.callout-note}
+Un grand résidu concerne la réponse, un fort levier concerne une combinaison inhabituelle de prédicteurs, et une grande influence concerne l'effet de l'observation sur le modèle. Ces notions sont liées, mais elles ne sont pas synonymes.
+:::
 
 ## 4. Faire une analyse de sensibilité
 
@@ -112,7 +145,21 @@ bind_rows(
 
 Décidez si votre conclusion principale change. Une variation numérique n'est pas nécessairement un changement substantiel.
 
-## 5. Rédiger la fiche modèle
+Comparez les signes, les ordres de grandeur et la conclusion qui serait communiquée. Ne cherchez pas l'égalité exacte des coefficients. Une conclusion est dite sensible si une décision raisonnable changerait selon que l'observation est incluse ou non.
+
+## 5. Choisir un verdict diagnostique
+
+Utilisez une seule des trois catégories:
+
+| Verdict | Signification |
+|---|---|
+| utilisable comme première approximation | les diagnostics ne changent pas la conclusion principale et l'usage reste limité |
+| utilisable avec réserves | une structure ou une influence doit être communiquée et vérifiée |
+| à revoir avant utilisation | la forme, la variance ou la sensibilité empêche l'usage prévu |
+
+Votre justification doit citer une preuve visible et une conséquence. Par exemple: « l'éventail des résidus rend les intervalles en dollars moins crédibles pour les propriétés coûteuses » est plus informatif que « l'homoscédasticité n'est pas respectée ».
+
+## 6. Rédiger la fiche modèle
 
 Écrivez exactement cinq phrases:
 
@@ -131,3 +178,17 @@ Votre fiche doit:
 3. interpréter conditionnellement;
 4. citer une preuve diagnostique précise;
 5. distinguer association, prédiction et causalité.
+
+Elle doit aussi pouvoir être lue sans la sortie R. Évitez les noms de fonctions et les seuils isolés. Nommez plutôt le résultat, la preuve diagnostique et la conséquence pour l'usage.
+
+## Vérification finale
+
+Avant de remettre, demandez à une personne de l'équipe de lire uniquement les cinq phrases, sans voir le code. Elle doit pouvoir répondre:
+
+1. quelles ventes ont été étudiées?
+2. quelles caractéristiques sont dans le modèle?
+3. quelle association principale a été estimée?
+4. quel diagnostic limite la confiance?
+5. quel usage est permis et quel usage est refusé?
+
+Si l'une de ces réponses manque, révisez la fiche plutôt que d'ajouter un résultat supplémentaire.

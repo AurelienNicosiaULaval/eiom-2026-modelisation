@@ -16,14 +16,29 @@ execute:
 
 Ce tutoriel construit un modèle linéaire multiple du prix de vente de propriétés résidentielles. Il suit la même progression que la présentation et les trois missions:
 
-1. comprendre l'unité et la réponse;
+1. comprendre l'unité statistique et la réponse;
 2. choisir un petit ensemble de prédicteurs;
-3. ajuster et interpréter le modèle;
-4. produire une prédiction avec son incertitude;
-5. vérifier les diagnostics et la sensibilité;
-6. comparer le prix brut et le prix logarithmique.
+3. comprendre comment les coefficients sont estimés;
+4. interpréter les coefficients et leur incertitude;
+5. produire une prédiction honnête;
+6. vérifier les hypothèses, l'influence et la sensibilité;
+7. comparer le prix brut et le prix logarithmique.
 
 Les données décrivent 2 930 ventes à Ames, en Iowa [@decock2011ames; @kuhn2020ameshousing].
+
+## Carte théorique de la matinée
+
+Une régression linéaire multiple ne se résume pas à la commande `lm()`. Elle relie cinq décisions qui doivent rester cohérentes:
+
+| Décision | Question à résoudre |
+|---|---|
+| objectif | veut-on décrire, expliquer une association ou prédire? |
+| représentation | quelle est l'unité statistique et comment coder les variables? |
+| structure | quelle forme de moyenne conditionnelle paraît plausible? |
+| estimation | comment choisir les coefficients et quantifier leur incertitude? |
+| évaluation | quelles hypothèses et quelles données permettent de faire confiance au résultat? |
+
+Le parcours commence par une association conditionnelle, puis examine une prédiction individuelle et les diagnostics. Une analyse causale demanderait une stratégie supplémentaire concernant le plan d'étude, les variables de confusion et les hypothèses d'identification.
 
 ## Préparer l'environnement
 
@@ -39,9 +54,11 @@ library(patchwork)
 theme_set(theme_minimal(base_size = 14))
 ```
 
+Chaque paquet possède ici un rôle précis. `AmesHousing` fournit les données, `tidyverse` prépare et visualise, `broom` transforme les sorties du modèle en tableaux, `performance` aide au diagnostic et `patchwork` combine les graphiques.
+
 ## Charger et simplifier les données
 
-`make_ames()` fournit le prix de vente et 80 caractéristiques. Nous conservons quelques variables faciles à expliquer.
+`make_ames()` fournit le prix de vente et 80 caractéristiques. Nous conservons quelques variables faciles à expliquer, tout en gardant deux extensions possibles.
 
 ```{r}
 ames_complet <- make_ames()
@@ -62,6 +79,8 @@ glimpse(ames)
 ```
 
 Une ligne est une vente résidentielle. `sale_price` est en dollars américains et `gr_liv_area` est la surface habitable au-dessus du sol, en pieds carrés. `overall_qual` est un score ordinal de 1 à 10.
+
+Le passage de `Overall_Qual` à un entier impose une hypothèse: une hausse d'un point possède le même sens moyen partout sur l'échelle. Cette simplification rend le coefficient lisible, mais elle doit être nommée.
 
 ## Comprendre la réponse
 
@@ -86,7 +105,7 @@ ames |>
   labs(x = "Prix de vente", y = "Nombre de ventes")
 ```
 
-La distribution est asymétrique vers la droite. Cela n'interdit pas d'ajuster un modèle en dollars, mais invite à examiner attentivement les résidus et à comparer une transformation logarithmique.
+La distribution est asymétrique vers la droite. Cela n'interdit pas d'ajuster un modèle en dollars. La forme de la réponse n'est pas, à elle seule, une hypothèse de la régression. Elle invite cependant à examiner attentivement les résidus et à comparer une transformation logarithmique.
 
 ## Explorer avant de modéliser
 
@@ -110,7 +129,40 @@ p_qualite <- ames |>
 p_surface + p_qualite
 ```
 
-Les graphiques suggèrent des associations positives, mais montrent aussi quelques propriétés très grandes ou très coûteuses. Le graphique seul ne permet pas d'isoler l'association propre à chaque caractéristique.
+Les graphiques suggèrent des associations positives, mais montrent aussi quelques propriétés très grandes ou très coûteuses. Un graphique bivarié ne permet pas d'isoler l'association propre à chaque caractéristique. C'est précisément le rôle de la comparaison conditionnelle dans le modèle multiple.
+
+## Du modèle de population au modèle ajusté
+
+Le modèle théorique décrit la moyenne du prix pour des propriétés possédant certaines caractéristiques:
+
+$$
+E(Y_i \mid X_i) =
+\beta_0 + \beta_1 X_{i1} + \cdots + \beta_p X_{ip}.
+$$
+
+Les paramètres $\beta_j$ appartiennent à une population conceptuelle et sont inconnus. Le modèle ajusté les remplace par des estimations $\widehat{\beta}_j$ calculées à partir des ventes observées.
+
+Pour chaque vente, le modèle produit une valeur ajustée $\widehat{y}_i$ et un résidu:
+
+$$
+e_i = y_i - \widehat{y}_i.
+$$
+
+Le résidu n'est pas nécessairement une erreur de saisie. Il représente la partie du prix que la moyenne conditionnelle du modèle n'explique pas pour cette vente.
+
+### Le principe des moindres carrés
+
+La fonction `lm()` choisit les coefficients qui minimisent la somme des résidus au carré:
+
+$$
+\sum_{i=1}^{n}(y_i - \widehat{y}_i)^2.
+$$
+
+Élever les résidus au carré empêche les erreurs positives et négatives de s'annuler et accorde davantage de poids aux grandes erreurs. Cette propriété rend aussi l'ajustement sensible aux observations extrêmes, ce qui motive l'analyse d'influence plus loin.
+
+::: {.callout-note}
+« Linéaire » signifie que la moyenne est linéaire dans les coefficients. Un modèle linéaire peut contenir un logarithme, un terme quadratique ou une interaction. Ces choix changent toutefois la forme et l'interprétation du modèle.
+:::
 
 ## Ajuster le modèle commun
 
@@ -127,11 +179,18 @@ glance(modele_prix)
 Le modèle s'écrit:
 
 $$
-Y_i = \beta_0 + \beta_1 S_i + \beta_2 Q_i +
-\beta_3 A_i + \beta_4 G_i + \varepsilon_i,
+Y_i =
+\beta_0 +
+\beta_1 S_i +
+\beta_2 Q_i +
+\beta_3 A_i +
+\beta_4 G_i +
+\varepsilon_i,
 $$
 
-où (Y_i) est le prix, (S_i) la surface, (Q_i) la qualité globale, (A_i) l'année de construction et (G_i) la capacité du garage.
+où $Y_i$ est le prix, $S_i$ la surface, $Q_i$ la qualité globale, $A_i$ l'année de construction et $G_i$ la capacité du garage.
+
+`tidy()` décrit les coefficients individuels. `glance()` résume l'ajustement entier. Le $R^2$ mesure la proportion de variation observée expliquée dans ces données. Le $R^2$ ajusté ajoute une pénalité liée au nombre de termes. Aucun des deux ne mesure directement l'erreur sur de nouvelles ventes.
 
 ## Interpréter les coefficients
 
@@ -151,8 +210,20 @@ coef_garage <- coef(modele_prix)[["garage_cars"]]
 Ces phrases décrivent des associations conditionnelles. Elles ne démontrent pas qu'une intervention sur une caractéristique causerait exactement la variation estimée.
 
 ::: {.callout-note}
-L'ordonnée à l'origine correspondrait notamment à une surface nulle et à une année de construction égale à zéro. Elle est nécessaire au calcul, mais n'a pas ici d'interprétation immobilière utile.
+L'ordonnée à l'origine correspondrait notamment à une surface nulle et à une année de construction égale à zéro. Elle est nécessaire au calcul, mais n'a pas ici d'interprétation immobilière utile. Un centrage des variables pourrait lui donner une référence plus plausible.
 :::
+
+## Coefficient, intervalle et valeur p
+
+Ces trois éléments répondent à des questions différentes:
+
+1. le coefficient donne la direction et la taille estimée dans les unités du modèle;
+2. l'intervalle de confiance décrit une plage de valeurs compatibles avec les données et les hypothèses;
+3. la valeur p évalue la compatibilité des données avec une hypothèse nulle, généralement $\beta_j = 0$.
+
+Une petite valeur p ne mesure ni la taille de l'association, ni son importance pratique, ni la qualité des prédictions. Avec 2 930 ventes, de petites associations peuvent être estimées avec précision. Il faut donc lire ensemble l'estimation, l'intervalle, les unités, le contexte et les diagnostics.
+
+Le test d'un coefficient est conditionnel aux autres termes du modèle. Modifier la formule peut modifier l'estimation, son erreur-type et sa valeur p, même lorsque les données ne changent pas.
 
 ## Vérifier la colinéarité
 
@@ -161,6 +232,25 @@ check_collinearity(modele_prix)
 ```
 
 Les facteurs d'inflation de la variance sont tous inférieurs à 2,4 dans ce modèle. Ils ne signalent pas une colinéarité sévère. Cette vérification ne garantit toutefois ni la bonne forme fonctionnelle ni l'absence de variables omises.
+
+La colinéarité concerne surtout la capacité à isoler des coefficients. Deux prédicteurs très redondants peuvent produire une bonne prédiction globale tout en donnant des coefficients individuels instables et des intervalles larges.
+
+## Hypothèses et portée des conclusions
+
+Les hypothèses ne sont pas une liste à cocher mécaniquement. Chacune protège certaines conclusions:
+
+| Hypothèse ou condition | Pourquoi elle compte | Comment l'examiner |
+|---|---|---|
+| moyenne correctement structurée | évite des résidus systématiques dans certaines zones | résidus contre valeurs ajustées et connaissance du domaine |
+| variance conditionnelle à peu près constante | soutient les erreurs-types et intervalles usuels | étalement vertical des résidus |
+| erreurs indépendantes | évite de compter plusieurs fois la même information | plan de collecte, ordre temporel, proximité spatiale ou groupes |
+| erreurs compatibles avec l'inférence utilisée | soutient les queues des intervalles | diagramme quantile-quantile et résidus extrêmes |
+| absence de colinéarité parfaite | permet d'isoler les coefficients | structure des variables, matrice du modèle et VIF |
+| absence de domination individuelle | soutient la stabilité de la conclusion | levier, distance de Cook et sensibilité |
+
+La normalité ne concerne pas la distribution brute de `sale_price`. Elle concerne les erreurs conditionnelles autour de la moyenne du modèle. Les estimations par moindres carrés peuvent être calculées sans normalité, mais l'inférence usuelle est plus fragile lorsque les queues s'éloignent fortement du modèle supposé.
+
+L'indépendance ne se lit pas uniquement dans un graphique. Des ventes provenant d'un même quartier ou d'une même période peuvent partager des caractéristiques non représentées. Le plan de collecte et la population visée font donc partie du diagnostic.
 
 ## Confiance et prédiction
 
@@ -192,6 +282,12 @@ intervalle_individuel
 
 Les deux intervalles sont centrés sur environ `r dollar(intervalle_individuel[1, "fit"], accuracy = 1)`. L'intervalle de confiance vise le prix moyen des propriétés possédant ces caractéristiques. L'intervalle de prédiction vise une nouvelle vente individuelle et est beaucoup plus large, car il inclut aussi la variabilité entre propriétés.
 
+### Ce que ces intervalles ne valident pas
+
+Les deux intervalles supposent que la formule, la structure de variance et la population cible sont suffisamment appropriées. Ils ne remplacent pas une évaluation prédictive sur de nouvelles données.
+
+Le modèle est ici ajusté et résumé avec les mêmes 2 930 ventes. Son erreur dans ces données est donc optimiste si l'on veut prédire de futures ventes. Pour évaluer la performance prédictive, il faudrait réserver un jeu test ou utiliser un rééchantillonnage qui répète la séparation entre ajustement et évaluation. Cette étape sera approfondie au jour 3.
+
 ## Diagnostiquer les résidus
 
 ```{r}
@@ -219,7 +315,9 @@ p_qq <- diagnostic_prix |>
 p_residus + p_qq
 ```
 
-Le nuage des résidus présente un étalement plus important pour les prix ajustés élevés et plusieurs observations extrêmes. Le diagramme quantile-quantile s'écarte de la droite dans les queues. Le modèle en dollars reste descriptivement utile, mais son incertitude et ses diagnostics doivent être communiqués.
+Le graphique des résidus doit idéalement ressembler à une bande horizontale centrée sur zéro, sans courbure claire et d'épaisseur à peu près constante. Ici, l'étalement augmente pour les prix ajustés élevés et plusieurs observations sont extrêmes.
+
+Le diagramme quantile-quantile compare les résidus standardisés à une distribution de référence. L'écart dans les queues ne signifie pas que toute association disparaît. Il signale surtout que les erreurs-types, les tests et les intervalles usuels méritent davantage de prudence.
 
 ## Examiner l'influence
 
@@ -236,7 +334,11 @@ ventes_influentes |>
   slice_head(n = 8)
 ```
 
+Une observation peut être atypique par sa réponse, posséder un fort levier par ses prédicteurs, ou être influente parce qu'elle modifie sensiblement l'ajustement. La distance de Cook combine ces deux dernières idées.
+
 La vente la plus influente est la ligne `r which.max(cooks.distance(modele_prix))`. Elle combine une surface de 5 642 pieds carrés, une qualité de 10 sur 10 et un prix de 160 000 dollars. Elle est inhabituelle, mais son caractère extrême ne prouve pas une erreur de saisie.
+
+Avant toute exclusion, il faut vérifier la source, comprendre le contexte, comparer les résultats avec et sans l'observation et documenter la décision.
 
 ## Faire une analyse de sensibilité
 
@@ -260,7 +362,7 @@ comparaison_coefficients <- bind_rows(
 comparaison_coefficients
 ```
 
-Les coefficients changent, surtout celui de la surface, mais leur signe et la conclusion générale restent stables. L'analyse de sensibilité informe le verdict; elle ne justifie pas à elle seule une suppression.
+Les coefficients changent, surtout celui de la surface, mais leur signe et la conclusion générale restent stables. Une variation numérique n'est pas nécessairement une différence substantielle. L'analyse de sensibilité informe le verdict; elle ne justifie pas à elle seule une suppression.
 
 ## Comparer une échelle logarithmique
 
@@ -299,7 +401,17 @@ p_log <- diagnostic_log |>
 p_prix + p_log
 ```
 
-La version logarithmique produit un nuage généralement plus régulier et explique davantage de variation sur son échelle. Le choix ne doit cependant pas reposer uniquement sur le (R^2): l'échelle modifie la question, les unités et la manière de revenir aux dollars.
+La version logarithmique produit un nuage généralement plus régulier et explique davantage de variation sur son échelle. Le choix ne doit cependant pas reposer uniquement sur le $R^2$: l'échelle modifie la question, les unités et la manière de revenir aux dollars.
+
+## Catégories, interactions et non-linéarité
+
+Le modèle commun reste volontairement simple. Trois extensions sont importantes à connaître:
+
+1. une variable nominale comme `neighborhood` est représentée par des indicatrices comparées à une catégorie de référence;
+2. une interaction permet à l'association entre la surface et le prix de varier selon une autre caractéristique;
+3. un terme quadratique ou une transformation permet de représenter une courbure.
+
+Ces extensions doivent être choisies pour répondre à une question ou corriger une structure visible, pas seulement pour augmenter le $R^2$. Elles compliquent l'interprétation et doivent faire partie de toute validation prédictive.
 
 ## Ce que le modèle permet de dire
 
@@ -313,3 +425,18 @@ Une conclusion proportionnée est:
 2. tester une interaction entre surface et qualité;
 3. séparer apprentissage et test pour mesurer l'erreur hors échantillon;
 4. comparer le modèle linéaire à un modèle plus flexible au jour 3.
+
+## Lectures complémentaires
+
+### Pour consolider la théorie
+
+1. [James et ses collègues, *An Introduction to Statistical Learning*](https://www.statlearning.com/), chapitre 3. Une présentation accessible de la régression simple et multiple, de l'inférence, des variables qualitatives et des extensions du modèle linéaire [@james2021isl].
+2. [OpenIntro, chapitre 7 sur la régression linéaire multiple](https://www.openintro.org/go/?id=biostat0). Une lecture plus détaillée des paramètres, des moindres carrés, des tests, des intervalles et des prédicteurs catégoriels.
+3. [Documentation officielle de `lm()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/lm.html). La référence technique pour les formules, les contrastes, les valeurs manquantes et les composantes retournées par R.
+
+### Pour prolonger le travail avec Ames et la modélisation
+
+1. [Kuhn et Silge, présentation des données Ames](https://www.tmwr.org/ames.html). Une exploration structurée du jeu et de sa préparation.
+2. [Kuhn et Silge, fondamentaux des modèles dans R](https://www.tmwr.org/base-r.html). Une explication des formules, objets ajustés, prédictions et conventions de base R.
+3. [Kuhn et Silge, flux de modélisation](https://www.tmwr.org/workflows). Une introduction à la séparation entre préparation, ajustement et évaluation, ainsi qu'à la validation sur des données réservées [@kuhn2022tmwr].
+4. [De Cock, article original sur les données Ames](https://doi.org/10.1080/10691898.2011.11889627). La source à consulter pour comprendre la construction du jeu et son objectif pédagogique [@decock2011ames].

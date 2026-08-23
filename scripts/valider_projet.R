@@ -37,6 +37,7 @@ private_files <- c(
   "instructeur/checklist-logistique.qmd",
   "instructeur/provenance-reutilisation.qmd",
   "instructeur/corriges/jour1.qmd",
+  "instructeur/audit-pedagogique-jour1.qmd",
   "instructeur/corriges/jour2.qmd",
   "instructeur/corriges/jour3.qmd"
 )

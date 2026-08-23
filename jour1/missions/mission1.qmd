@@ -14,6 +14,38 @@ Durée: 25 minutes.
 
 Production: une formule de modèle, un graphique probant et un verdict de trois phrases.
 
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. nommer précisément l'unité statistique et les unités de mesure;
+2. distinguer la forme de la réponse de la forme d'une relation;
+3. justifier un prédicteur autrement que par sa disponibilité dans le fichier;
+4. écrire une formule de modèle qui correspond à une question explicite.
+
+Le but n'est pas de trouver immédiatement le meilleur modèle. Il est de construire un premier modèle assez simple pour que chaque choix puisse être expliqué et discuté.
+
+## Organisation suggérée de l'équipe
+
+Répartissez trois rôles:
+
+1. une personne exécute le code;
+2. une personne surveille les unités, les titres et la question statistique;
+3. une personne rédige le verdict et demande la preuve de chaque affirmation.
+
+Changez de rôle après le premier graphique si le temps le permet.
+
+## Repères sur les variables
+
+| Variable | Signification | Type et unité |
+|---|---|---|
+| `sale_price` | prix de vente | quantitative, dollars américains |
+| `gr_liv_area` | surface habitable au-dessus du sol | quantitative, pieds carrés |
+| `overall_qual` | qualité globale | ordinale, score de 1 à 10 |
+| `year_built` | année de construction | quantitative, année |
+| `garage_cars` | capacité du garage | dénombrement, nombre de places |
+| `neighborhood` | quartier | nominale, catégorie |
+
 ## 1. Charger et préparer les données
 
 ```{r}
@@ -36,6 +68,8 @@ ames <- make_ames() |>
 ```
 
 Une ligne représente une vente résidentielle. `sale_price` est en dollars américains et `gr_liv_area` est la surface habitable au-dessus du sol, en pieds carrés.
+
+Avant de continuer, vérifiez que vous obtenez 2 930 lignes. Si ce n'est pas le cas, ne poursuivez pas: vérifiez l'appel à `make_ames()` et les noms de variables.
 
 ## 2. Comprendre la réponse
 
@@ -63,6 +97,8 @@ ames |>
 
 Décrivez la forme de la distribution. Le prix brut semble-t-il symétrique? Une transformation logarithmique pourrait-elle être utile plus tard?
 
+Cette étape décrit uniquement la réponse. Elle ne permet pas encore de dire pourquoi les prix diffèrent. Notez séparément une caractéristique générale, par exemple l'asymétrie, et une observation particulière, par exemple un prix très élevé.
+
 ## 3. Examiner quatre pistes
 
 ```{r}
@@ -84,6 +120,16 @@ p_surface + p_qualite
 
 Créez ensuite un graphique semblable pour l'année de construction ou le nombre de places de garage.
 
+Pour chaque graphique, utilisez la même grille de lecture:
+
+1. direction générale de l'association;
+2. forme approximativement linéaire ou courbée;
+3. dispersion verticale autour de la tendance;
+4. présence d'observations inhabituelles;
+5. variable absente qui pourrait modifier l'interprétation.
+
+Un nuage de points montre une association marginale. Le coefficient du futur modèle sera conditionnel aux autres variables incluses. Les deux résultats peuvent donc différer.
+
 ## 4. Proposer un premier modèle
 
 Le modèle commun de la matinée sera:
@@ -103,6 +149,8 @@ Avant de l'exécuter, prédisez le signe de chaque coefficient. Distinguez ensui
 3. contrôle d'un facteur de confusion possible;
 4. facilité d'interprétation.
 
+Une variable ne doit pas être retenue uniquement parce que sa valeur p pourrait être petite. À cette étape, la question, la plausibilité, la représentation de facteurs importants et la lisibilité du modèle passent avant le tri automatique.
+
 ::: {.callout-tip collapse="true"}
 ## Prolongement
 
@@ -118,3 +166,15 @@ Rédigez exactement trois phrases:
 3. « Nous retenons... parce que notre graphique montre... »
 
 Conservez votre graphique et ces phrases pour la mission finale.
+
+## Vérification avant de remettre
+
+Votre équipe doit pouvoir répondre oui aux cinq questions:
+
+1. avons-nous nommé la vente comme unité statistique?
+2. avons-nous conservé les unités du prix et de la surface?
+3. notre graphique possède-t-il des axes lisibles?
+4. chaque prédicteur possède-t-il une justification?
+5. avons-nous évité le langage causal?
+
+Si une réponse est non, corrigez d'abord le verdict plutôt que d'ajouter un nouveau graphique.

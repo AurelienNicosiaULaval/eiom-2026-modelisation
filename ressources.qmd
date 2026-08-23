@@ -24,6 +24,18 @@ Le parcours s'appuie sur la progression de l'apprentissage statistique décrite 
 
 Pour l'évaluation des modèles binaires, la courbe ROC est présentée comme une mesure de discrimination sur l'ensemble des seuils [@fawcett2006roc]. La calibration est traitée séparément, conformément à la hiérarchie proposée par Van Calster et ses collègues [@vancalster2019calibration].
 
+## Lectures complémentaires du jour 1
+
+| Lecture | Utilité |
+|---|---|
+| [James et ses collègues, chapitre 3](https://www.statlearning.com/) | Régression simple et multiple, inférence, variables qualitatives et extensions linéaires. |
+| [OpenIntro, chapitre 7](https://www.openintro.org/go/?id=biostat0) | Paramètres, moindres carrés, tests, intervalles et prédicteurs catégoriels. |
+| [Kuhn et Silge, données Ames](https://www.tmwr.org/ames.html) | Provenance, exploration et préparation du jeu immobilier. |
+| [Kuhn et Silge, fondamentaux des modèles dans R](https://www.tmwr.org/base-r.html) | Formules, objets ajustés, résidus et prédictions. |
+| [Kuhn et Silge, flux de modélisation](https://www.tmwr.org/workflows) | Séparation entre préparation, ajustement et évaluation sur des données réservées. |
+| [Documentation officielle de `lm()`](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/lm.html) | Arguments, formules, contrastes, valeurs manquantes et objet retourné. |
+| [De Cock, article original sur Ames](https://doi.org/10.1080/10691898.2011.11889627) | Construction du jeu, variables et intention pédagogique. |
+
 ## Sources de données
 
 Les données du jour 1 décrivent 2 930 ventes résidentielles à Ames, en Iowa, et sont accessibles dans le paquet R `AmesHousing` [@decock2011ames; @kuhn2020ameshousing]. Les demandes de services citoyennes utilisées ensuite proviennent du système 311 de la Ville de Montréal [@montreal2026requete311].

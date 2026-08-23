@@ -41,7 +41,7 @@ La présentation reste le fil principal de 8 h 45 à 12 h 15. Le tutoriel sert d
 
 ## Production de la matinée
 
-Une note de service de cinq phrases:
+Une fiche modèle de cinq phrases:
 
 1. la question analysée;
 2. le modèle retenu;
@@ -53,6 +53,28 @@ Une note de service de cinq phrases:
 
 Le parcours essentiel couvre l'ajustement, l'interprétation et les diagnostics de résidus, de colinéarité et d'influence. Les extensions ajoutent les interactions et la prédiction sur l'échelle originale.
 
+## Couverture théorique
+
+La présentation introduit les notions nécessaires sans demander de dérivation calculatoire:
+
+1. objectifs descriptif, explicatif et prédictif;
+2. moyenne conditionnelle, valeurs ajustées, résidus et moindres carrés;
+3. codage des variables quantitatives, ordinales et nominales;
+4. interprétation conditionnelle des coefficients;
+5. distinction entre estimation, intervalle, valeur p et utilité pratique;
+6. colinéarité, hypothèses, diagnostics et influence;
+7. intervalles de confiance et de prédiction;
+8. transformation logarithmique, sensibilité et validation hors échantillon.
+
+Le [tutoriel complet](tutoriel.html) développe ces notions avec davantage de texte, les sorties R, des formulations d'interprétation et une section de lectures complémentaires.
+
 ## Données
 
 Une ligne représente une vente résidentielle à Ames, en Iowa. Le jeu contient 2 930 ventes et 80 caractéristiques des propriétés. Les montants sont en dollars américains et la surface habitable est exprimée en pieds carrés [@decock2011ames; @kuhn2020ameshousing].
+
+## Lectures suggérées
+
+1. [*An Introduction to Statistical Learning*](https://www.statlearning.com/), chapitre 3, pour la théorie de la régression linéaire [@james2021isl].
+2. [Tidy Modeling with R, données Ames](https://www.tmwr.org/ames.html), pour prolonger l'exploration du jeu.
+3. [Tidy Modeling with R, fondamentaux des modèles dans R](https://www.tmwr.org/base-r.html), pour les formules, objets ajustés et prédictions [@kuhn2022tmwr].
+4. [OpenIntro, chapitre 7](https://www.openintro.org/go/?id=biostat0), pour une présentation détaillée de la régression multiple.
