@@ -4,6 +4,10 @@ library(readr)
 library(stringr)
 library(dplyr)
 
+if (!requireNamespace("AmesHousing", quietly = TRUE)) {
+  stop("Le paquet AmesHousing est requis.", call. = FALSE)
+}
+
 required_files <- c(
   "_quarto.yml",
   "index.qmd",
@@ -16,6 +20,9 @@ required_files <- c(
   "jour1/slides.qmd",
   "jour1/tutoriel.qmd",
   "jour1/pratique.qmd",
+  "jour1/missions/mission1.qmd",
+  "jour1/missions/mission2.qmd",
+  "jour1/missions/mission3.qmd",
   "jour2/slides.qmd",
   "jour2/tutoriel.qmd",
   "jour2/pratique.qmd",
@@ -85,12 +92,21 @@ if (any(has_em_dash)) {
 }
 
 bibliotheques <- read_csv("data/bibliotheques_quebec_2024.csv", show_col_types = FALSE)
+ames <- AmesHousing::make_ames()
 requetes_311 <- read_csv(
   "data/requetes_311_montreal_2024_eiom.csv",
   show_col_types = FALSE
 )
 
 stopifnot(nrow(bibliotheques) == 188L)
+stopifnot(nrow(ames) == 2930L)
+stopifnot(ncol(ames) == 81L)
+stopifnot(
+  all(
+    c("Sale_Price", "Gr_Liv_Area", "Overall_Qual", "Year_Built", "Garage_Cars") %in%
+      names(ames)
+  )
+)
 stopifnot(nrow(requetes_311) == 18000L)
 stopifnot(n_distinct(requetes_311$identifiant_requete) == 18000L)
 stopifnot(

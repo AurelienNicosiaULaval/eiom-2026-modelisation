@@ -26,7 +26,7 @@ Pour l'évaluation des modèles binaires, la courbe ROC est présentée comme un
 
 ## Sources de données
 
-Les données de bibliothèques proviennent de l'Enquête annuelle sur les bibliothèques publiques du Québec, ressource 2024 [@banq2025bibliotheques]. Les demandes de services citoyennes proviennent du système 311 de la Ville de Montréal [@montreal2026requete311]. Le risque d'interprétation trompeuse lorsque plusieurs ratios partagent un même composant est discuté par Kronmal [@kronmal1993ratio].
+Les données du jour 1 décrivent 2 930 ventes résidentielles à Ames, en Iowa, et sont accessibles dans le paquet R `AmesHousing` [@decock2011ames; @kuhn2020ameshousing]. Les demandes de services citoyennes utilisées ensuite proviennent du système 311 de la Ville de Montréal [@montreal2026requete311].
 
 ## Références
 

@@ -27,43 +27,35 @@ Le script installe uniquement les paquets manquants.
 # Load libraries
 library(tidyverse)
 library(tidymodels)
+library(AmesHousing)
 
-# Import a small local data set
-bibliotheques <- read_csv(
-  "data/bibliotheques_quebec_2024.csv",
-  show_col_types = FALSE
-)
+# Load the Day 1 data set
+ames <- make_ames()
 
 # Check the first observations and dimensions
-glimpse(bibliotheques)
-dim(bibliotheques)
+glimpse(ames)
+dim(ames)
 ```
 
-Vous devriez obtenir 188 lignes et 16 colonnes. Le second fichier pédagogique contient 18 000 requêtes 311 et 15 colonnes.
+Vous devriez obtenir 2 930 lignes et 81 colonnes, soit le prix de vente et 80 caractéristiques des propriétés. Le second fichier pédagogique contient 18 000 requêtes 311 et 15 colonnes.
 
 ## Test de modélisation
 
 ```{r}
-# Keep complete observations for a minimal model
-bibliotheques_modele <- bibliotheques |>
-  filter(
-    !is.na(visites_total),
-    !is.na(prets_total),
-    !is.na(depenses_fonctionnement_total),
-    !is.na(population_desservie),
-    population_desservie > 0
-  ) |>
-  mutate(
-    log_visites = log1p(visites_total),
-    log_population = log(population_desservie),
-    log_prets = log1p(prets_total),
-    log_depenses = log1p(depenses_fonctionnement_total)
+# Prepare the variables shared by the Day 1 material
+ames_modele <- ames |>
+  transmute(
+    sale_price = Sale_Price,
+    gr_liv_area = Gr_Liv_Area,
+    overall_qual = as.integer(Overall_Qual),
+    year_built = Year_Built,
+    garage_cars = Garage_Cars
   )
 
 # Fit a reproducible linear model
 modele_test <- lm(
-  log_visites ~ log_population + log_prets + log_depenses,
-  data = bibliotheques_modele
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames_modele
 )
 
 summary(modele_test)

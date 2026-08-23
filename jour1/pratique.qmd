@@ -11,18 +11,18 @@ format:
 Les missions sont réalisées en équipes de trois ou quatre personnes. Elles apparaissent à trois moments de la présentation. Pour chaque mission, votre équipe doit produire un résultat court à réutiliser dans la mission suivante.
 
 <div class="resource-grid">
-<a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Enquêter avant de modéliser: unité, exclusions, volumes et ratios.</span></a>
-<a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Ajuster, interpréter et défendre un modèle multiple.</span></a>
-<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Auditer les diagnostics et rédiger la note de service.</span></a>
+<a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Explorer le prix et choisir un petit ensemble de prédicteurs.</span></a>
+<a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Ajuster, interpréter et produire une prédiction honnête.</span></a>
+<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Diagnostiquer, comparer les échelles et rédiger la fiche modèle.</span></a>
 </div>
 
 ## Production cumulative
 
 À la fin des trois missions, votre équipe aura rassemblé:
 
-1. un verdict sur l'unité et l'échelle de modélisation;
-2. une interprétation conditionnelle accompagnée d'une réserve;
-3. une note de service de cinq phrases qui communique le résultat, le diagnostic et la limite.
+1. une question précise et une formule de modèle justifiée;
+2. une interprétation conditionnelle et une prédiction accompagnée de son incertitude;
+3. une fiche modèle de cinq phrases qui communique le résultat, le diagnostic et la limite.
 
 ## Règle de travail
 

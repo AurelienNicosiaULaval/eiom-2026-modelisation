@@ -25,7 +25,7 @@ Au terme du parcours, chaque personne aura produit:
 |---|---|---|
 | 0:00 à 0:15 | Défi d'ouverture: que raconte une droite? | Hypothèses individuelles |
 | 0:15 à 0:40 | Modèle, association, prédiction et causalité | Carte conceptuelle |
-| 0:40 à 1:10 | Démonstration en direct sur les bibliothèques | Premier modèle |
+| 0:40 à 1:10 | Démonstration en direct sur les ventes immobilières d'Ames | Premier modèle |
 | 1:10 à 1:30 | Coefficients, intervalles et prédictions | Interprétation rédigée |
 | 1:30 à 1:45 | Pause | |
 | 1:45 à 2:15 | Clinique de diagnostics | Verdict argumenté |

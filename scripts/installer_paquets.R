@@ -1,6 +1,7 @@
 # Install only the R packages that are missing for the EIOM 2026 workshops.
 
 required_packages <- c(
+  "AmesHousing",
   "broom",
   "car",
   "httr2",

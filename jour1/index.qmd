@@ -8,7 +8,7 @@ format:
 
 ## Question directrice
 
-Comment la fréquentation totale varie-t-elle avec la population desservie, les prêts et les dépenses des bibliothèques publiques du Québec, et jusqu'où peut-on interpréter le modèle?
+Comment le prix de vente d'une propriété varie-t-il avec sa surface, sa qualité, son année de construction et son garage, et jusqu'où peut-on interpréter ou utiliser le modèle?
 
 ## Objectifs
 
@@ -44,10 +44,10 @@ La présentation reste le fil principal de 8 h 45 à 12 h 15. Le tutoriel sert d
 Une note de service de cinq phrases:
 
 1. la question analysée;
-2. l'unité statistique;
+2. le modèle retenu;
 3. le principal résultat conditionnel;
 4. un diagnostic qui modifie ou nuance l'interprétation;
-5. une limite qui interdit une conclusion causale.
+5. la limite qui encadre une prédiction ou interdit une conclusion causale.
 
 ## Deux niveaux de parcours
 
@@ -55,4 +55,4 @@ Le parcours essentiel couvre l'ajustement, l'interprétation et les diagnostics 
 
 ## Données
 
-Une ligne représente une bibliothèque publique ou un centre régional dans la ressource 2024. Les données sont administratives et déclarées. Elles ne mesurent pas directement la qualité, la satisfaction ou l'accessibilité du service [@banq2025bibliotheques].
+Une ligne représente une vente résidentielle à Ames, en Iowa. Le jeu contient 2 930 ventes et 80 caractéristiques des propriétés. Les montants sont en dollars américains et la surface habitable est exprimée en pieds carrés [@decock2011ames; @kuhn2020ameshousing].

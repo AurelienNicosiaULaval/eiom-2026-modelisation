@@ -1,6 +1,6 @@
 ---
-title: "Mission finale: auditer et communiquer"
-subtitle: "Diagnostics, sensibilité et note de service"
+title: "Mission finale: auditer et conclure"
+subtitle: "Diagnostics, sensibilité et fiche modèle"
 format:
   html:
     embed-resources: true
@@ -8,129 +8,126 @@ format:
 
 ## Votre mandat
 
-Votre équipe doit vérifier si quelques observations ou une structure résiduelle modifient la confiance accordée au modèle. Vous terminerez par une note de service de cinq phrases destinée à une personne qui doit utiliser le résultat sans voir la sortie R.
+Votre premier modèle est facile à interpréter, mais il faut maintenant vérifier ce qu'il laisse de côté. Vous devez comparer le modèle en dollars à une version logarithmique, examiner l'influence et rédiger une fiche modèle de cinq phrases.
 
 Durée: 20 minutes.
 
-Production: une note de service de cinq phrases et une phrase à défendre oralement.
+Production: un verdict diagnostique et une fiche finale.
 
-## 1. Reconstituer le modèle
+## 1. Reprendre les deux modèles
 
 ```{r}
 #| eval: false
 library(tidyverse)
+library(AmesHousing)
 library(broom)
+library(patchwork)
 
-bibliotheques <- read_csv(
-  "data/bibliotheques_quebec_2024.csv",
-  show_col_types = FALSE
-)
-
-bibliotheques_modele <- bibliotheques |>
-  filter(
-    !is.na(visites_total),
-    !is.na(prets_total),
-    !is.na(depenses_fonctionnement_total),
-    !is.na(population_desservie),
-    population_desservie > 0
-  ) |>
-  mutate(
-    log_visites = log1p(visites_total),
-    log_population = log(population_desservie),
-    log_prets = log1p(prets_total),
-    log_depenses = log1p(depenses_fonctionnement_total)
+ames <- make_ames() |>
+  transmute(
+    sale_price = Sale_Price,
+    gr_liv_area = Gr_Liv_Area,
+    overall_qual = as.integer(Overall_Qual),
+    year_built = Year_Built,
+    garage_cars = Garage_Cars
   )
 
-modele_log <- lm(
-  log_visites ~ log_population + log_prets + log_depenses,
-  data = bibliotheques_modele
+modele_prix <- lm(
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames
 )
 
-diagnostics <- augment(modele_log, data = bibliotheques_modele)
+modele_log <- lm(
+  log(sale_price) ~ log(gr_liv_area) + overall_qual +
+    year_built + garage_cars,
+  data = ames
+)
 ```
 
-## 2. Examiner les résidus
+## 2. Regarder les résidus
 
 ```{r}
 #| eval: false
-diagnostics |>
-  ggplot(aes(.fitted, .std.resid)) +
+diagnostic_prix <- augment(modele_prix, data = ames)
+diagnostic_log <- augment(modele_log, data = ames)
+
+p_prix <- diagnostic_prix |>
+  ggplot(aes(.fitted, .resid)) +
+  geom_point(alpha = 0.25, color = "#277da1") +
   geom_hline(yintercept = 0, linetype = 2) +
-  geom_point() +
-  geom_smooth(se = FALSE)
+  geom_smooth(se = FALSE, color = "#b5222e") +
+  labs(title = "Prix en dollars", x = "Valeurs ajustées", y = "Résidus")
 
-diagnostics |>
-  ggplot(aes(sample = .std.resid)) +
-  stat_qq() +
-  stat_qq_line()
+p_log <- diagnostic_log |>
+  ggplot(aes(.fitted, .resid)) +
+  geom_point(alpha = 0.25, color = "#0f7c80") +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_smooth(se = FALSE, color = "#b5222e") +
+  labs(title = "Prix logarithmique", x = "Valeurs ajustées", y = "Résidus")
+
+p_prix + p_log
 ```
 
-Choisissez un constat:
+Pour chaque graphique, examinez la forme moyenne, l'étalement vertical et les observations extrêmes. Quel modèle produit le nuage le plus régulier?
 
-- aucune structure préoccupante visible;
-- structure légère qui exige une réserve;
-- structure suffisamment forte pour demander une autre spécification.
-
-Justifiez ce choix avec un élément visible.
-
-## 3. Identifier l'influence
+## 3. Examiner l'influence
 
 ```{r}
 #| eval: false
-diagnostics |>
-  mutate(seuil_cook = 4 / n()) |>
+diagnostic_prix |>
+  mutate(numero = row_number()) |>
   arrange(desc(.cooksd)) |>
-  select(bibliotheque, .hat, .std.resid, .cooksd, seuil_cook) |>
+  select(
+    numero, sale_price, gr_liv_area, overall_qual,
+    year_built, garage_cars, .resid, .cooksd
+  ) |>
   slice_head(n = 8)
 ```
 
-Répondez:
+Questions:
 
-1. Quelle organisation a la plus grande distance de Cook?
-2. Dépasse-t-elle le repère exploratoire `4 / n`?
-3. Pourquoi ne doit-elle pas être supprimée automatiquement?
+1. Quelle vente a la plus grande distance de Cook?
+2. Est-elle manifestement impossible, ou seulement inhabituelle?
+3. Quelle information faudrait-il vérifier avant de l'exclure?
+4. Pourquoi ne faut-il pas supprimer automatiquement toutes les observations signalées?
 
-## 4. Réaliser une analyse de sensibilité
+## 4. Faire une analyse de sensibilité
 
 ```{r}
 #| eval: false
-seuil_cook <- 4 / nrow(diagnostics)
+numero_max <- which.max(cooks.distance(modele_prix))
 
-modele_sensibilite <- diagnostics |>
-  filter(.cooksd <= seuil_cook) |>
-  lm(
-    log_visites ~ log_population + log_prets + log_depenses,
-    data = _
-  )
+modele_sans_max <- lm(
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames[-numero_max, ]
+)
 
 bind_rows(
-  tidy(modele_log) |> mutate(analyse = "Principale"),
-  tidy(modele_sensibilite) |> mutate(analyse = "Sensibilité")
+  tidy(modele_prix) |> mutate(analyse = "toutes les ventes"),
+  tidy(modele_sans_max) |> mutate(analyse = "sans la vente la plus influente")
 ) |>
   filter(term != "(Intercept)") |>
   select(analyse, term, estimate)
 ```
 
-Le message principal reste-t-il semblable? Quel coefficient change le plus?
+Décidez si votre conclusion principale change. Une variation numérique n'est pas nécessairement un changement substantiel.
 
-## 5. Rédiger la note de service
+## 5. Rédiger la fiche modèle
 
 Écrivez exactement cinq phrases:
 
-1. Question: « Nous avons étudié... »
-2. Population: « L'analyse porte sur... »
-3. Résultat: « Parmi des bibliothèques comparables... »
-4. Diagnostic: « L'interprétation doit être nuancée parce que... »
-5. Limite: « Ces données ne permettent pas de conclure que... »
+1. « Nous avons étudié... »
+2. « Notre modèle utilise... »
+3. « À caractéristiques identiques, nous estimons que... »
+4. « Les diagnostics montrent toutefois que... »
+5. « Nous utiliserions donc ce modèle pour..., mais pas pour... »
 
-## Vérification avant de remettre
+## Critères de réussite
 
-Votre note:
+Votre fiche doit:
 
-- nomme l'unité statistique;
-- contient un résultat quantifié;
-- utilise « associé » plutôt que « cause »;
-- mentionne la colinéarité ou l'influence;
-- interdit explicitement une conclusion causale.
-
-Choisissez la phrase que votre équipe défendra lors du retour collectif.
+1. nommer l'unité statistique;
+2. conserver les unités du prix et de la surface;
+3. interpréter conditionnellement;
+4. citer une preuve diagnostique précise;
+5. distinguer association, prédiction et causalité.

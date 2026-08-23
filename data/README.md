@@ -1,6 +1,16 @@
 # Données pédagogiques EIOM 2026
 
-## Bibliothèques publiques du Québec
+## Ventes immobilières d'Ames, Iowa
+
+Les données du jour 1 sont chargées directement avec `AmesHousing::make_ames()`. Elles décrivent 2 930 ventes résidentielles à Ames, en Iowa. Le jeu complet contient la réponse `Sale_Price` et 80 caractéristiques des propriétés. La matinée 1 utilise principalement `Gr_Liv_Area`, `Overall_Qual`, `Year_Built` et `Garage_Cars`.
+
+Source méthodologique: Dean De Cock (2011), *Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project*, Journal of Statistics Education, 19(3). https://doi.org/10.1080/10691898.2011.11889627
+
+Paquet R: Max Kuhn (2020), `AmesHousing`, version 0.0.4. https://CRAN.R-project.org/package=AmesHousing
+
+Une ligne représente une vente résidentielle. Les montants sont en dollars américains et la surface habitable au-dessus du sol est exprimée en pieds carrés. Ces données observationnelles permettent d'étudier des associations et la prédiction, mais ne suffisent pas à identifier des effets causaux.
+
+## Bibliothèques publiques du Québec, ressource complémentaire
 
 Fichier: `bibliotheques_quebec_2024.csv`
 

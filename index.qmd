@@ -33,7 +33,7 @@ format:
 
 L'EIOM accueille des personnes étudiantes aux cycles supérieurs, des stagiaires postdoctoraux, des professionnelles et professionnels de recherche ainsi que des personnes issues de plusieurs disciplines. Le parcours suppose une connaissance de base de R, sans exiger une programmation avancée [@eiom2026; @eiomfaq2026].
 
-Chaque matinée propose donc un trajet essentiel et des prolongements pour les personnes plus expérimentées. Les exemples québécois ont été choisis pour que la question scientifique reste accessible sans expertise préalable en services municipaux ou en bibliothéconomie.
+Chaque matinée propose donc un trajet essentiel et des prolongements pour les personnes plus expérimentées. Les exemples ont été choisis pour que la question scientifique reste accessible sans expertise préalable du domaine étudié.
 
 ## Trois matinées, une progression
 
@@ -53,6 +53,6 @@ Chaque matinée propose donc un trajet essentiel et des prolongements pour les p
 
 ## Données et posture
 
-Nous travaillerons avec les statistiques 2024 des bibliothèques publiques du Québec et les demandes de services citoyennes 311 de Montréal créées en 2024 [@banq2025bibliotheques; @montreal2026requete311]. Les modèles seront présentés comme des outils descriptifs ou prédictifs. Ils ne suffisent pas, à eux seuls, à établir une relation causale.
+Nous travaillerons avec les ventes immobilières d'Ames, en Iowa, et les demandes de services citoyennes 311 de Montréal créées en 2024 [@decock2011ames; @montreal2026requete311]. Les modèles seront présentés comme des outils descriptifs ou prédictifs. Ils ne suffisent pas, à eux seuls, à établir une relation causale.
 
 La sixième édition de l'EIOM se déroule en présence à l'Université Laval du 24 au 28 août 2026. Le parcours officiel vise un niveau intermédiaire à avancé et repose sur R [@eiom2026].

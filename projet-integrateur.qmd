@@ -16,7 +16,7 @@ Ce projet est une activité de synthèse de l'atelier. Il ne constitue pas une �
 
 ### Mission 1: comprendre une association
 
-Utilisez les données des bibliothèques publiques québécoises. Formulez une question portant sur l'association entre un résultat d'intérêt et au moins deux caractéristiques des bibliothèques. Évitez de placer de part et d'autre du modèle plusieurs ratios partageant le même dénominateur sans justification.
+Utilisez les données immobilières d'Ames. Formulez une question portant sur l'association entre le prix de vente et au moins deux caractéristiques des propriétés. Précisez si votre objectif principal est l'interprétation des associations ou la prédiction de nouvelles ventes.
 
 Exemples de résultats possibles:
 

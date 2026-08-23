@@ -1,6 +1,6 @@
 ---
-title: "Mission 1: enquêter avant de modéliser"
-subtitle: "Unité, exclusions, volumes et ratios"
+title: "Mission 1: choisir avant d'ajuster"
+subtitle: "Question, graphiques et formule de modèle"
 format:
   html:
     embed-resources: true
@@ -8,109 +8,113 @@ format:
 
 ## Votre mandat
 
-Vous conseillez une équipe qui veut expliquer les visites totales des bibliothèques publiques du Québec. Avant tout ajustement, vous devez décider ce que représente une ligne, quelles observations peuvent être utilisées et si l'analyse doit porter sur des volumes ou des ratios.
+Vous devez construire un premier modèle explicatif du prix de vente des propriétés d'Ames. Votre équipe ne peut retenir que quatre à six prédicteurs. Le but est de faire des choix lisibles, pas d'utiliser toutes les colonnes.
 
 Durée: 25 minutes.
 
-Production: un verdict de trois phrases et une preuve graphique.
+Production: une formule de modèle, un graphique probant et un verdict de trois phrases.
 
-## 1. Charger les données
+## 1. Charger et préparer les données
 
 ```{r}
 #| eval: false
 library(tidyverse)
+library(AmesHousing)
 library(scales)
 library(patchwork)
 
-bibliotheques <- read_csv(
-  "data/bibliotheques_quebec_2024.csv",
-  show_col_types = FALSE
+ames <- make_ames() |>
+  transmute(
+    sale_price = Sale_Price,
+    gr_liv_area = Gr_Liv_Area,
+    overall_qual = as.integer(Overall_Qual),
+    year_built = Year_Built,
+    garage_cars = Garage_Cars,
+    full_bath = Full_Bath,
+    neighborhood = Neighborhood
+  )
+```
+
+Une ligne représente une vente résidentielle. `sale_price` est en dollars américains et `gr_liv_area` est la surface habitable au-dessus du sol, en pieds carrés.
+
+## 2. Comprendre la réponse
+
+Complétez puis exécutez:
+
+```{r}
+#| eval: false
+ames |>
+  summarise(
+    ventes = n(),
+    prix_median = median(___),
+    prix_min = min(___),
+    prix_max = max(___)
+  )
+```
+
+```{r}
+#| eval: false
+ames |>
+  ggplot(aes(x = ___)) +
+  geom_histogram(bins = 40, fill = "#0f7c80", color = "white") +
+  scale_x_continuous(labels = label_dollar()) +
+  labs(x = "Prix de vente", y = "Nombre de ventes")
+```
+
+Décrivez la forme de la distribution. Le prix brut semble-t-il symétrique? Une transformation logarithmique pourrait-elle être utile plus tard?
+
+## 3. Examiner quatre pistes
+
+```{r}
+#| eval: false
+p_surface <- ames |>
+  ggplot(aes(gr_liv_area, sale_price)) +
+  geom_point(alpha = 0.25, color = "#277da1") +
+  geom_smooth(method = "lm", se = FALSE, color = "#b5222e") +
+  labs(x = "Surface habitable", y = "Prix")
+
+p_qualite <- ames |>
+  ggplot(aes(overall_qual, sale_price)) +
+  geom_jitter(width = 0.15, alpha = 0.2, color = "#0f7c80") +
+  geom_smooth(method = "lm", se = FALSE, color = "#b5222e") +
+  labs(x = "Qualité globale, de 1 à 10", y = "Prix")
+
+p_surface + p_qualite
+```
+
+Créez ensuite un graphique semblable pour l'année de construction ou le nombre de places de garage.
+
+## 4. Proposer un premier modèle
+
+Le modèle commun de la matinée sera:
+
+```{r}
+#| eval: false
+modele_prix <- lm(
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames
 )
 ```
 
-## 2. Déterminer l'unité et les exclusions
+Avant de l'exécuter, prédisez le signe de chaque coefficient. Distinguez ensuite les raisons de garder une variable:
 
-Complétez et exécutez:
-
-```{r}
-#| eval: false
-bibliotheques |>
-  summarise(
-    lignes = n(),
-    regions = n_distinct(region_administrative, na.rm = TRUE),
-    visites_manquantes = sum(is.na(___)),
-    prets_manquants = sum(is.na(___)),
-    depenses_manquantes = sum(is.na(___)),
-    population_manquante = sum(is.na(___))
-  )
-```
-
-Répondez:
-
-1. Que représente une ligne?
-2. Combien de lignes seront exclues du modèle complet?
-3. Quelle population le modèle décrira-t-il après ces exclusions?
-4. Pourquoi faut-il exclure une population nulle avant de calculer son logarithme?
+1. connaissance du problème;
+2. preuve graphique;
+3. contrôle d'un facteur de confusion possible;
+4. facilité d'interprétation.
 
 ::: {.callout-tip collapse="true"}
-## Indice
+## Prolongement
 
-Utilisez successivement `visites_total`, `prets_total`, `depenses_fonctionnement_total` et `population_desservie` dans les espaces vides.
+Comparez votre formule à un modèle qui ajoute `full_bath` ou `neighborhood`. Une variable supplémentaire améliore-t-elle nécessairement la valeur pédagogique ou la capacité de généralisation du modèle?
 :::
-
-## 3. Préparer les deux lectures
-
-```{r}
-#| eval: false
-bibliotheques_modele <- bibliotheques |>
-  filter(
-    !is.na(visites_total),
-    !is.na(prets_total),
-    !is.na(depenses_fonctionnement_total),
-    !is.na(population_desservie),
-    population_desservie > 0
-  ) |>
-  mutate(
-    log_visites = log1p(visites_total),
-    log_population = log(population_desservie),
-    log_prets = log1p(prets_total),
-    log_depenses = log1p(depenses_fonctionnement_total)
-  )
-```
-
-```{r}
-#| eval: false
-graphique_volumes <- bibliotheques |>
-  ggplot(aes(population_desservie, visites_total)) +
-  geom_point(alpha = 0.6) +
-  scale_x_log10() +
-  scale_y_log10() +
-  labs(title = "Volumes")
-
-graphique_ratios <- bibliotheques |>
-  ggplot(aes(population_desservie, visites_par_habitant)) +
-  geom_point(alpha = 0.6) +
-  scale_x_log10() +
-  labs(title = "Ratios")
-
-graphique_volumes + graphique_ratios
-```
-
-## 4. Prendre une décision
-
-Discutez:
-
-1. Quel graphique décrit le volume de service?
-2. Quel graphique décrit une intensité relative?
-3. Pourquoi une relation entre `visites_par_habitant` et `prets_par_habitant` exige-t-elle une prudence particulière?
-4. Pour expliquer `visites_total`, choisiriez-vous des volumes avec population incluse ou plusieurs ratios par habitant?
 
 ## Votre verdict
 
 Rédigez exactement trois phrases:
 
 1. « Une ligne représente... »
-2. « Nous utiliserons... parce que... »
-3. « Notre principale réserve avant l'ajustement est... »
+2. « Nous voulons surtout expliquer ou prédire... »
+3. « Nous retenons... parce que notre graphique montre... »
 
-Conservez ces phrases pour la mission finale.
+Conservez votre graphique et ces phrases pour la mission finale.

@@ -1,6 +1,6 @@
 ---
-title: "Mission 2: ajuster, interpréter et défendre"
-subtitle: "Modèle multiple, élasticité et colinéarité"
+title: "Mission 2: interpréter et prédire"
+subtitle: "Coefficients, colinéarité et deux intervalles"
 format:
   html:
     embed-resources: true
@@ -8,106 +8,98 @@ format:
 
 ## Votre mandat
 
-Votre équipe doit ajuster le modèle multiple, interpréter le coefficient des prêts et décider jusqu'où cette interprétation reste défendable lorsque les prédicteurs décrivent en partie la même taille organisationnelle.
+Vous reprenez le modèle commun. Votre équipe doit interpréter deux coefficients sans langage causal, vérifier la colinéarité et produire une prédiction dont l'incertitude est clairement expliquée.
 
 Durée: 25 minutes.
 
-Production: une interprétation complète et une réserve méthodologique.
+Production: deux interprétations et une comparaison d'intervalles.
 
-## 1. Préparer la table
+## 1. Ajuster le modèle commun
 
 ```{r}
 #| eval: false
 library(tidyverse)
+library(AmesHousing)
 library(broom)
 library(performance)
+library(scales)
 
-bibliotheques <- read_csv(
-  "data/bibliotheques_quebec_2024.csv",
-  show_col_types = FALSE
+ames <- make_ames() |>
+  transmute(
+    sale_price = Sale_Price,
+    gr_liv_area = Gr_Liv_Area,
+    overall_qual = as.integer(Overall_Qual),
+    year_built = Year_Built,
+    garage_cars = Garage_Cars
+  )
+
+modele_prix <- lm(
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames
 )
 
-bibliotheques_modele <- bibliotheques |>
-  filter(
-    !is.na(visites_total),
-    !is.na(prets_total),
-    !is.na(depenses_fonctionnement_total),
-    !is.na(population_desservie),
-    population_desservie > 0
-  ) |>
-  mutate(
-    log_visites = log1p(visites_total),
-    log_population = log(population_desservie),
-    log_prets = log1p(prets_total),
-    log_depenses = log1p(depenses_fonctionnement_total)
-  )
+tidy(modele_prix, conf.int = TRUE)
+glance(modele_prix)
 ```
 
-## 2. Ajuster le modèle
+## 2. Interpréter conditionnellement
 
-Complétez la réponse et les trois prédicteurs:
+Complétez les deux phrases suivantes avec les résultats du modèle:
+
+1. « À qualité, année de construction et capacité du garage identiques, 100 pieds carrés supplémentaires sont associés en moyenne à... »
+2. « À surface, année de construction et capacité du garage identiques, un point supplémentaire de qualité globale est associé en moyenne à... »
+
+Questions de contrôle:
+
+1. Pourquoi faut-il dire « à caractéristiques identiques »?
+2. Pourquoi le coefficient de l'ordonnée à l'origine n'a-t-il pas ici une interprétation immobilière utile?
+3. Pourquoi « associé » est-il préférable à « cause »?
+
+## 3. Vérifier la colinéarité
 
 ```{r}
 #| eval: false
-modele_log <- lm(
-  ___ ~ ___ + ___ + ___,
-  data = bibliotheques_modele
+check_collinearity(modele_prix)
+```
+
+Décidez si les coefficients semblent gravement déstabilisés par la colinéarité. Appuyez votre verdict sur les valeurs observées, pas sur une règle isolée.
+
+## 4. Prédire une propriété type
+
+La propriété type possède 1 500 pieds carrés habitables, une qualité de 6 sur 10, a été construite en 2000 et offre deux places de garage.
+
+```{r}
+#| eval: false
+propriete_type <- tibble(
+  gr_liv_area = 1500,
+  overall_qual = 6L,
+  year_built = 2000L,
+  garage_cars = 2
 )
 
-tidy(modele_log, conf.int = TRUE)
-glance(modele_log)
+predict(modele_prix, propriete_type, interval = "confidence")
+predict(modele_prix, propriete_type, interval = "prediction")
 ```
 
 Répondez:
 
-1. Quel est le signe du coefficient des prêts?
-2. Son intervalle de confiance contient-il zéro?
-3. Quel est le $R^2$ ajusté?
-4. Un bon $R^2$ suffit-il à rendre chaque coefficient facile à interpréter?
+1. Les deux intervalles ont-ils le même centre?
+2. Lequel décrit la moyenne attendue de propriétés semblables?
+3. Lequel convient au prix d'une nouvelle propriété individuelle?
+4. Pourquoi le second est-il beaucoup plus large?
 
 ::: {.callout-tip collapse="true"}
-## Indice
+## Prolongement
 
-La formule est `log_visites ~ log_population + log_prets + log_depenses`.
+Standardisez les prédicteurs avec `scale()`, réajustez le modèle et comparez la taille des coefficients standardisés. N'utilisez pas ces coefficients pour prédire directement un montant en dollars.
 :::
 
-## 3. Traduire le coefficient des prêts
+## Votre verdict
 
-```{r}
-#| eval: false
-coefficient_prets <- tidy(modele_log) |>
-  filter(term == "log_prets") |>
-  pull(estimate)
+Produisez trois éléments:
 
-100 * (1.10^coefficient_prets - 1)
-```
-
-Rédigez une phrase qui contient les quatre éléments suivants:
-
-1. une hausse de 10 % des prêts;
-2. la variation estimée des visites;
-3. la population et les dépenses maintenues constantes dans le modèle;
-4. le mot « associé » plutôt que « causé ».
-
-## 4. Examiner la colinéarité
-
-```{r}
-#| eval: false
-check_collinearity(modele_log)
-```
-
-Discutez:
-
-1. Quel prédicteur présente le VIF le plus élevé?
-2. Pourquoi population, prêts et dépenses pourraient-ils transporter une information semblable?
-3. La colinéarité empêche-t-elle toute prédiction?
-4. Que change-t-elle dans l'interprétation des coefficients individuels?
-
-## Votre conclusion à défendre
-
-Préparez deux phrases:
-
-1. une interprétation conditionnelle du coefficient des prêts;
-2. une réserve sur la stabilité ou l'isolement de ce coefficient.
+1. une interprétation de la surface;
+2. une interprétation de la qualité;
+3. une phrase expliquant quel intervalle vous communiqueriez pour une nouvelle vente.
 
 Conservez-les pour la mission finale.

@@ -1,304 +1,315 @@
 ---
-title: "Tutoriel: une clinique de régression linéaire"
-subtitle: "Bibliothèques publiques du Québec, ressource 2024"
+title: "Tutoriel du jour 1"
+subtitle: "Expliquer et prédire le prix des propriétés d'Ames"
 format:
   html:
     embed-resources: true
-    code-fold: false
+    toc: true
+    toc-depth: 3
 execute:
-  cache: false
+  echo: true
+  warning: false
+  message: false
 ---
 
 ## Objectif
 
-Construire un modèle exploratoire du volume total de visites en tenant compte de la taille de la population desservie, puis vérifier si son interprétation résiste aux diagnostics.
+Ce tutoriel construit un modèle linéaire multiple du prix de vente de propriétés résidentielles. Il suit la même progression que la présentation et les trois missions:
 
-## 1. Charger les paquets et les données
+1. comprendre l'unité et la réponse;
+2. choisir un petit ensemble de prédicteurs;
+3. ajuster et interpréter le modèle;
+4. produire une prédiction avec son incertitude;
+5. vérifier les diagnostics et la sensibilité;
+6. comparer le prix brut et le prix logarithmique.
+
+Les données décrivent 2 930 ventes à Ames, en Iowa [@decock2011ames; @kuhn2020ameshousing].
+
+## Préparer l'environnement
 
 ```{r}
-# Load libraries
+#| label: setup
 library(tidyverse)
+library(AmesHousing)
 library(broom)
 library(performance)
 library(scales)
+library(patchwork)
 
-# Use a consistent graphical theme
-theme_set(theme_minimal(base_size = 13))
-
-# Import the fixed teaching extract
-bibliotheques <- read_csv(
-  "data/bibliotheques_quebec_2024.csv",
-  show_col_types = FALSE
-)
-
-# Inspect structure
-glimpse(bibliotheques)
+theme_set(theme_minimal(base_size = 14))
 ```
 
-## 2. Comprendre l'unité statistique
+## Charger et simplifier les données
+
+`make_ames()` fournit le prix de vente et 80 caractéristiques. Nous conservons quelques variables faciles à expliquer.
 
 ```{r}
-# Count observations and regions
-bibliotheques |>
-  summarise(
-    n_lignes = n(),
-    n_regions = n_distinct(region_administrative, na.rm = TRUE),
-    n_categories = n_distinct(categorie_bibliotheque, na.rm = TRUE)
-  )
+ames_complet <- make_ames()
 
-# Audit missing values in modeling variables
-bibliotheques |>
-  summarise(
-    across(
-      c(
-        visites_total,
-        prets_total,
-        depenses_fonctionnement_total,
-        population_desservie
-      ),
-      ~ sum(is.na(.x))
-    )
-  ) |>
-  pivot_longer(
-    cols = everything(),
-    names_to = "variable",
-    values_to = "n_manquantes"
-  )
-```
-
-Une ligne représente une bibliothèque publique ou un centre régional. Les variables sont issues d'une enquête administrative. Elles ne représentent pas des personnes échantillonnées aléatoirement.
-
-## 3. Préparer la table de modélisation
-
-```{r}
-bibliotheques_modele <- bibliotheques |>
-  filter(
-    !is.na(visites_total),
-    !is.na(prets_total),
-    !is.na(depenses_fonctionnement_total),
-    !is.na(population_desservie),
-    population_desservie > 0
-  ) |>
-  mutate(
-    log_visites = log1p(visites_total),
-    log_population = log(population_desservie),
-    log_prets = log1p(prets_total),
-    log_depenses = log1p(depenses_fonctionnement_total)
-  )
-
-dim(bibliotheques_modele)
-```
-
-La transformation `log1p(x)` calcule `log(1 + x)`. Elle accepte les valeurs nulles et réduit l'influence visuelle des bibliothèques qui desservent de très grandes populations. Le modèle principal utilise des volumes totaux plutôt que plusieurs ratios partageant la population au dénominateur [@kronmal1993ratio].
-
-## 4. Explorer avant de modéliser
-
-```{r}
-# Distribution on the original scale
-bibliotheques_modele |>
-  ggplot(aes(visites_total)) +
-  geom_histogram(bins = 30, fill = "#277da1", color = "white") +
-  scale_x_log10(labels = label_number(scale_cut = cut_short_scale())) +
-  labs(
-    x = "Visites totales, échelle logarithmique",
-    y = "Nombre de bibliothèques",
-    title = "La distribution est fortement asymétrique"
-  )
-```
-
-```{r}
-# Bivariate relation before adjustment
-bibliotheques_modele |>
-  ggplot(aes(log_prets, log_visites)) +
-  geom_point(aes(size = population_desservie), alpha = 0.55, color = "#0f7c80") +
-  geom_smooth(method = "lm", color = "#b5222e") +
-  scale_size_continuous(labels = label_number(scale_cut = cut_short_scale())) +
-  labs(
-    x = "log(1 + prêts totaux)",
-    y = "log(1 + visites totales)",
-    size = "Population desservie"
-  )
-```
-
-## 5. Ajuster un modèle multiple
-
-```{r}
-modele_log <- lm(
-  log_visites ~
-    log_population +
-    log_prets +
-    log_depenses,
-  data = bibliotheques_modele
-)
-
-# Compact coefficient table with confidence intervals
-coefficients <- tidy(modele_log, conf.int = TRUE)
-coefficients
-
-# Global fit information
-glance(modele_log)
-```
-
-## 6. Interpréter sur l'échelle originale
-
-Lorsque la réponse et le prédicteur sont tous deux logarithmiques, un coefficient se lit approximativement comme une élasticité conditionnelle. Une hausse de 10 % de `1 + prêts totaux` est associée à une variation de `100 * (1.10^beta - 1)` % de `1 + visites totales`, les autres variables incluses étant maintenues constantes.
-
-```{r}
-interpretation <- coefficients |>
-  filter(term %in% c("log_population", "log_prets", "log_depenses")) |>
+ames <- ames_complet |>
   transmute(
-    terme = term,
-    coefficient = estimate,
-    variation_reponse_pour_10_pct = 100 * (1.10^estimate - 1)
+    sale_price = Sale_Price,
+    gr_liv_area = Gr_Liv_Area,
+    overall_qual = as.integer(Overall_Qual),
+    year_built = Year_Built,
+    garage_cars = Garage_Cars,
+    full_bath = Full_Bath,
+    neighborhood = Neighborhood
   )
 
-interpretation
+dim(ames_complet)
+glimpse(ames)
 ```
 
-Cette traduction n'est pas une preuve causale. Une dépense plus élevée peut être associée à d'autres caractéristiques non incluses dans le modèle.
+Une ligne est une vente résidentielle. `sale_price` est en dollars américains et `gr_liv_area` est la surface habitable au-dessus du sol, en pieds carrés. `overall_qual` est un score ordinal de 1 à 10.
 
-## 7. Vérifier si les prédicteurs racontent la même chose
-
-```{r}
-check_collinearity(modele_log)
-```
-
-La population, les prêts et les dépenses sont tous liés à la taille de l'organisation. Une forte colinéarité n'invalide pas automatiquement la prédiction globale, mais elle rend les coefficients conditionnels plus instables et plus difficiles à isoler.
-
-## 8. Examiner les résidus
+## Comprendre la réponse
 
 ```{r}
-diagnostics <- augment(modele_log, data = bibliotheques_modele) |>
-  mutate(
-    observation_influente = .cooksd > 4 / n()
+ames |>
+  summarise(
+    ventes = n(),
+    prix_median = median(sale_price),
+    prix_moyen = mean(sale_price),
+    prix_min = min(sale_price),
+    prix_max = max(sale_price)
   )
+```
 
-diagnostics |>
-  ggplot(aes(.fitted, .std.resid)) +
-  geom_hline(yintercept = 0, linetype = 2, color = "#52606d") +
-  geom_point(aes(color = observation_influente), alpha = 0.7) +
+```{r}
+#| fig-width: 9
+#| fig-height: 4.8
+ames |>
+  ggplot(aes(sale_price)) +
+  geom_histogram(bins = 40, fill = "#0f7c80", color = "white") +
+  scale_x_continuous(labels = label_dollar()) +
+  labs(x = "Prix de vente", y = "Nombre de ventes")
+```
+
+La distribution est asymétrique vers la droite. Cela n'interdit pas d'ajuster un modèle en dollars, mais invite à examiner attentivement les résidus et à comparer une transformation logarithmique.
+
+## Explorer avant de modéliser
+
+```{r}
+#| fig-width: 10
+#| fig-height: 5
+p_surface <- ames |>
+  ggplot(aes(gr_liv_area, sale_price)) +
+  geom_point(alpha = 0.25, color = "#277da1") +
+  geom_smooth(method = "lm", se = TRUE, color = "#b5222e") +
+  scale_y_continuous(labels = label_dollar()) +
+  labs(x = "Surface habitable, pieds carrés", y = "Prix de vente")
+
+p_qualite <- ames |>
+  ggplot(aes(overall_qual, sale_price)) +
+  geom_jitter(width = 0.15, alpha = 0.2, color = "#0f7c80") +
+  geom_smooth(method = "lm", se = TRUE, color = "#b5222e") +
+  scale_y_continuous(labels = label_dollar()) +
+  labs(x = "Qualité globale, de 1 à 10", y = "Prix de vente")
+
+p_surface + p_qualite
+```
+
+Les graphiques suggèrent des associations positives, mais montrent aussi quelques propriétés très grandes ou très coûteuses. Le graphique seul ne permet pas d'isoler l'association propre à chaque caractéristique.
+
+## Ajuster le modèle commun
+
+```{r}
+modele_prix <- lm(
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames
+)
+
+tidy(modele_prix, conf.int = TRUE)
+glance(modele_prix)
+```
+
+Le modèle s'écrit:
+
+$$
+Y_i = \beta_0 + \beta_1 S_i + \beta_2 Q_i +
+\beta_3 A_i + \beta_4 G_i + \varepsilon_i,
+$$
+
+où (Y_i) est le prix, (S_i) la surface, (Q_i) la qualité globale, (A_i) l'année de construction et (G_i) la capacité du garage.
+
+## Interpréter les coefficients
+
+Les valeurs numériques sont calculées directement à partir du modèle.
+
+```{r}
+coef_surface <- coef(modele_prix)[["gr_liv_area"]]
+coef_qualite <- coef(modele_prix)[["overall_qual"]]
+coef_annee <- coef(modele_prix)[["year_built"]]
+coef_garage <- coef(modele_prix)[["garage_cars"]]
+```
+
+À qualité, année de construction et capacité du garage identiques, 100 pieds carrés supplémentaires sont associés en moyenne à environ `r dollar(100 * coef_surface, accuracy = 1)` de plus sur le prix de vente.
+
+À surface, année de construction et capacité du garage identiques, un point supplémentaire de qualité globale est associé en moyenne à environ `r dollar(coef_qualite, accuracy = 1)` de plus.
+
+Ces phrases décrivent des associations conditionnelles. Elles ne démontrent pas qu'une intervention sur une caractéristique causerait exactement la variation estimée.
+
+::: {.callout-note}
+L'ordonnée à l'origine correspondrait notamment à une surface nulle et à une année de construction égale à zéro. Elle est nécessaire au calcul, mais n'a pas ici d'interprétation immobilière utile.
+:::
+
+## Vérifier la colinéarité
+
+```{r}
+check_collinearity(modele_prix)
+```
+
+Les facteurs d'inflation de la variance sont tous inférieurs à 2,4 dans ce modèle. Ils ne signalent pas une colinéarité sévère. Cette vérification ne garantit toutefois ni la bonne forme fonctionnelle ni l'absence de variables omises.
+
+## Confiance et prédiction
+
+Considérons une propriété de 1 500 pieds carrés, de qualité 6 sur 10, construite en 2000 et dotée de deux places de garage.
+
+```{r}
+propriete_type <- tibble(
+  gr_liv_area = 1500,
+  overall_qual = 6L,
+  year_built = 2000L,
+  garage_cars = 2
+)
+
+intervalle_moyenne <- predict(
+  modele_prix,
+  propriete_type,
+  interval = "confidence"
+)
+
+intervalle_individuel <- predict(
+  modele_prix,
+  propriete_type,
+  interval = "prediction"
+)
+
+intervalle_moyenne
+intervalle_individuel
+```
+
+Les deux intervalles sont centrés sur environ `r dollar(intervalle_individuel[1, "fit"], accuracy = 1)`. L'intervalle de confiance vise le prix moyen des propriétés possédant ces caractéristiques. L'intervalle de prédiction vise une nouvelle vente individuelle et est beaucoup plus large, car il inclut aussi la variabilité entre propriétés.
+
+## Diagnostiquer les résidus
+
+```{r}
+diagnostic_prix <- augment(modele_prix, data = ames)
+```
+
+```{r}
+#| fig-width: 10
+#| fig-height: 4.8
+p_residus <- diagnostic_prix |>
+  ggplot(aes(.fitted, .resid)) +
+  geom_point(alpha = 0.25, color = "#277da1") +
+  geom_hline(yintercept = 0, linetype = 2) +
   geom_smooth(se = FALSE, color = "#b5222e") +
-  scale_color_manual(values = c("FALSE" = "#277da1", "TRUE" = "#f4a261")) +
-  labs(
-    x = "Valeurs ajustées",
-    y = "Résidus standardisés",
-    color = "Cook > 4/n"
-  )
-```
+  scale_x_continuous(labels = label_dollar()) +
+  scale_y_continuous(labels = label_dollar()) +
+  labs(x = "Prix ajusté", y = "Résidu")
 
-On cherche une bande sans courbure nette et sans changement systématique de dispersion.
-
-```{r}
-ggplot(diagnostics, aes(sample = .std.resid)) +
-  stat_qq(alpha = 0.65, color = "#277da1") +
+p_qq <- diagnostic_prix |>
+  ggplot(aes(sample = .std.resid)) +
+  stat_qq(alpha = 0.3, color = "#0f7c80") +
   stat_qq_line(color = "#b5222e") +
-  labs(
-    x = "Quantiles théoriques",
-    y = "Résidus standardisés"
-  )
+  labs(x = "Quantiles théoriques", y = "Résidus standardisés")
+
+p_residus + p_qq
 ```
 
-Le graphique quantile-quantile est surtout important pour l'inférence dans de petits échantillons. Une déviation en queue ne rend pas automatiquement toutes les estimations inutiles.
+Le nuage des résidus présente un étalement plus important pour les prix ajustés élevés et plusieurs observations extrêmes. Le diagramme quantile-quantile s'écarte de la droite dans les queues. Le modèle en dollars reste descriptivement utile, mais son incertitude et ses diagnostics doivent être communiqués.
 
-## 9. Identifier les observations influentes
+## Examiner l'influence
 
 ```{r}
-observations_influentes <- diagnostics |>
+ventes_influentes <- diagnostic_prix |>
+  mutate(numero = row_number()) |>
   arrange(desc(.cooksd)) |>
   select(
-    bibliotheque,
-    region_administrative,
-    visites_total,
-    .fitted,
-    .std.resid,
-    .hat,
-    .cooksd
-  ) |>
-  slice_head(n = 10)
+    numero, sale_price, gr_liv_area, overall_qual,
+    year_built, garage_cars, .resid, .cooksd
+  )
 
-observations_influentes
+ventes_influentes |>
+  slice_head(n = 8)
 ```
 
-Une valeur influente peut être valide et substantiellement importante. Il faut vérifier sa provenance et mesurer la sensibilité des conclusions.
+La vente la plus influente est la ligne `r which.max(cooks.distance(modele_prix))`. Elle combine une surface de 5 642 pieds carrés, une qualité de 10 sur 10 et un prix de 160 000 dollars. Elle est inhabituelle, mais son caractère extrême ne prouve pas une erreur de saisie.
+
+## Faire une analyse de sensibilité
 
 ```{r}
-# Sensitivity analysis without the single most influential observation
-nom_plus_influent <- observations_influentes |>
-  slice(1) |>
-  pull(bibliotheque)
+numero_max <- which.max(cooks.distance(modele_prix))
 
-modele_sans_plus_influent <- lm(
-  log_visites ~
-    log_population +
-    log_prets +
-    log_depenses,
-  data = bibliotheques_modele |>
-    filter(bibliotheque != nom_plus_influent)
+modele_sans_max <- lm(
+  sale_price ~ gr_liv_area + overall_qual + year_built + garage_cars,
+  data = ames[-numero_max, ]
 )
 
 comparaison_coefficients <- bind_rows(
-  tidy(modele_log) |>
-    mutate(modele = "Toutes les observations"),
-  tidy(modele_sans_plus_influent) |>
-    mutate(modele = "Sans la plus influente")
+  tidy(modele_prix) |>
+    mutate(analyse = "toutes les ventes"),
+  tidy(modele_sans_max) |>
+    mutate(analyse = "sans la vente la plus influente")
 ) |>
   filter(term != "(Intercept)") |>
-  select(modele, term, estimate, std.error)
+  select(analyse, term, estimate)
 
 comparaison_coefficients
 ```
 
-## 10. Produire une prédiction avec intervalle
+Les coefficients changent, surtout celui de la surface, mais leur signe et la conclusion générale restent stables. L'analyse de sensibilité informe le verdict; elle ne justifie pas à elle seule une suppression.
+
+## Comparer une échelle logarithmique
 
 ```{r}
-# Construct a plausible profile using medians
-profil <- bibliotheques_modele |>
-  summarise(
-    log_population = median(log_population),
-    log_prets = median(log_prets),
-    log_depenses = median(log_depenses)
-  )
-
-# Prediction interval on the log scale
-prediction_log <- predict(
-  modele_log,
-  newdata = profil,
-  interval = "prediction",
-  level = 0.95
+modele_log <- lm(
+  log(sale_price) ~ log(gr_liv_area) + overall_qual +
+    year_built + garage_cars,
+  data = ames
 )
 
-# Back-transform interval endpoints to total visits
-prediction_originale <- as_tibble(prediction_log) |>
-  mutate(across(everything(), expm1))
-
-prediction_originale
+tidy(modele_log, conf.int = TRUE)
+glance(modele_log)
 ```
 
-La transformation inverse donne un intervalle asymétrique sur l'échelle originale. La valeur centrale transformée vise une médiane conditionnelle approximative plutôt qu'une moyenne exactement corrigée du biais de retransformation.
-
-## 11. Rédiger la conclusion
-
-Une conclusion solide doit inclure:
-
-1. l'unité statistique;
-2. l'association conditionnelle étudiée;
-3. l'incertitude;
-4. un résultat de diagnostic;
-5. les limites des données administratives et de la colinéarité;
-6. l'absence de conclusion causale.
-
-## Extension: une interaction à tester
+Dans ce modèle, le coefficient de `log(gr_liv_area)` est une élasticité conditionnelle. Une hausse de 1 % de la surface est associée en moyenne à une variation d'environ `r percent(coef(modele_log)[["log(gr_liv_area)"]] / 100, accuracy = 0.01)` du prix, à caractéristiques identiques.
 
 ```{r}
-#| eval: false
-modele_interaction <- lm(
-  log_visites ~
-    log_population +
-    log_prets * log_depenses,
-  data = bibliotheques_modele
-)
+#| fig-width: 10
+#| fig-height: 4.8
+diagnostic_log <- augment(modele_log, data = ames)
 
-anova(modele_log, modele_interaction)
+p_prix <- diagnostic_prix |>
+  ggplot(aes(.fitted, .resid)) +
+  geom_point(alpha = 0.22, color = "#277da1") +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_smooth(se = FALSE, color = "#b5222e") +
+  labs(title = "Prix en dollars", x = "Valeurs ajustées", y = "Résidus")
+
+p_log <- diagnostic_log |>
+  ggplot(aes(.fitted, .resid)) +
+  geom_point(alpha = 0.22, color = "#0f7c80") +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_smooth(se = FALSE, color = "#b5222e") +
+  labs(title = "Prix logarithmique", x = "Valeurs ajustées", y = "Résidus")
+
+p_prix + p_log
 ```
 
-Une interaction doit répondre à une hypothèse substantielle. Elle ne doit pas être ajoutée uniquement parce qu'elle améliore une statistique dans l'échantillon.
+La version logarithmique produit un nuage généralement plus régulier et explique davantage de variation sur son échelle. Le choix ne doit cependant pas reposer uniquement sur le (R^2): l'échelle modifie la question, les unités et la manière de revenir aux dollars.
+
+## Ce que le modèle permet de dire
+
+Une conclusion proportionnée est:
+
+> Parmi les 2 930 ventes observées à Ames, la surface, la qualité globale, l'année de construction et la capacité du garage sont associées au prix. Le modèle en dollars est facile à interpréter, mais ses résidus deviennent plus variables pour les propriétés coûteuses et certaines ventes sont influentes. Une transformation logarithmique améliore la régularité des diagnostics, au prix d'une interprétation différente. Le modèle peut soutenir une première estimation et une comparaison conditionnelle, mais il ne démontre pas d'effet causal et ne remplace pas une validation sur de nouvelles données.
+
+## Prolongements
+
+1. ajouter `neighborhood` comme variable catégorielle;
+2. tester une interaction entre surface et qualité;
+3. séparer apprentissage et test pour mesurer l'erreur hors échantillon;
+4. comparer le modèle linéaire à un modèle plus flexible au jour 3.
