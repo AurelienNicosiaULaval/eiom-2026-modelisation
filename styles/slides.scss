@@ -45,12 +45,80 @@ $code-block-bg: #eef3f7;
   font-size: 2.2em;
 }
 
+.reveal .slides section.section-slide {
+  display: grid;
+  place-content: center;
+  min-height: 520px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #102a43 0%, #173f5f 72%, #0f7c80 150%);
+  text-align: center;
+}
+
+.reveal .slides section.section-slide h2,
+.reveal .slides section.section-slide p {
+  color: #ffffff;
+}
+
+.reveal .slides section.section-slide h2 {
+  font-size: 2.35em;
+}
+
+.reveal .slides section.mission-slide {
+  min-height: 520px;
+  padding: 1.5rem 2rem;
+  border-top: 0.5rem solid #b5222e;
+  background: #f7f4ef;
+}
+
+.reveal .slides section.mission-slide h2 {
+  color: #b5222e;
+}
+
+.reveal .mission-button {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 0.3rem;
+  color: #ffffff;
+  background: #b5222e;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.reveal .mission-button:hover {
+  color: #ffffff;
+  background: #8f1823;
+}
+
+.reveal .slides section.debrief-slide {
+  border-left: 0.5rem solid #0f7c80;
+  background: #f2f8f8;
+}
+
+.reveal .slides section.pause-slide {
+  display: grid;
+  place-content: center;
+  min-height: 520px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f7c80 0%, #173f5f 130%);
+  text-align: center;
+}
+
+.reveal .slides section.pause-slide h2,
+.reveal .slides section.pause-slide p {
+  color: #ffffff;
+}
+
+.reveal .slides section.pause-slide h2 {
+  font-size: 2.4em;
+}
+
 .reveal .footer {
   color: #52606d;
 }
 
 .reveal table {
-  font-size: 0.8em;
+  font-size: 0.76em;
 }
 
 .reveal pre code {

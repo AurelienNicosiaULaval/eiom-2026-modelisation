@@ -24,10 +24,20 @@ Comment la fréquentation totale varie-t-elle avec la population desservie, les 
 ## Matériel
 
 <div class="resource-grid">
-<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Le fil narratif pour la démonstration et les échanges.</span></a>
+<a class="resource-card" href="slides.html"><span class="card-title">Présentation centrale</span><span class="card-copy">Le fil complet de la matinée: théorie, questions, missions et débriefs.</span></a>
 <a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Code exécutable, résultats et interprétations.</span></a>
-<a class="resource-card" href="pratique.html"><span class="card-title">Clinique de modèle</span><span class="card-copy">Quatre stations de diagnostic à réaliser en équipe.</span></a>
+<a class="resource-card" href="pratique.html"><span class="card-title">Missions</span><span class="card-copy">Trois enquêtes en équipe, intégrées au fil de la présentation.</span></a>
 </div>
+
+## Déroulement
+
+La matinée alterne trois cycles:
+
+1. théorie et participation collective;
+2. mission guidée en équipe;
+3. débrief et mise en commun.
+
+La présentation reste le fil principal de 8 h 45 à 12 h 15. Le tutoriel sert de référence détaillée et les missions s'ouvrent lorsque leur diapositive de transition apparaît.
 
 ## Production de la matinée
 

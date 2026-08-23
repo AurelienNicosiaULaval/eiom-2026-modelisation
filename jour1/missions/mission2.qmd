@@ -1,0 +1,113 @@
+---
+title: "Mission 2: ajuster, interpréter et défendre"
+subtitle: "Modèle multiple, élasticité et colinéarité"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit ajuster le modèle multiple, interpréter le coefficient des prêts et décider jusqu'où cette interprétation reste défendable lorsque les prédicteurs décrivent en partie la même taille organisationnelle.
+
+Durée: 25 minutes.
+
+Production: une interprétation complète et une réserve méthodologique.
+
+## 1. Préparer la table
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(broom)
+library(performance)
+
+bibliotheques <- read_csv(
+  "data/bibliotheques_quebec_2024.csv",
+  show_col_types = FALSE
+)
+
+bibliotheques_modele <- bibliotheques |>
+  filter(
+    !is.na(visites_total),
+    !is.na(prets_total),
+    !is.na(depenses_fonctionnement_total),
+    !is.na(population_desservie),
+    population_desservie > 0
+  ) |>
+  mutate(
+    log_visites = log1p(visites_total),
+    log_population = log(population_desservie),
+    log_prets = log1p(prets_total),
+    log_depenses = log1p(depenses_fonctionnement_total)
+  )
+```
+
+## 2. Ajuster le modèle
+
+Complétez la réponse et les trois prédicteurs:
+
+```{r}
+#| eval: false
+modele_log <- lm(
+  ___ ~ ___ + ___ + ___,
+  data = bibliotheques_modele
+)
+
+tidy(modele_log, conf.int = TRUE)
+glance(modele_log)
+```
+
+Répondez:
+
+1. Quel est le signe du coefficient des prêts?
+2. Son intervalle de confiance contient-il zéro?
+3. Quel est le $R^2$ ajusté?
+4. Un bon $R^2$ suffit-il à rendre chaque coefficient facile à interpréter?
+
+::: {.callout-tip collapse="true"}
+## Indice
+
+La formule est `log_visites ~ log_population + log_prets + log_depenses`.
+:::
+
+## 3. Traduire le coefficient des prêts
+
+```{r}
+#| eval: false
+coefficient_prets <- tidy(modele_log) |>
+  filter(term == "log_prets") |>
+  pull(estimate)
+
+100 * (1.10^coefficient_prets - 1)
+```
+
+Rédigez une phrase qui contient les quatre éléments suivants:
+
+1. une hausse de 10 % des prêts;
+2. la variation estimée des visites;
+3. la population et les dépenses maintenues constantes dans le modèle;
+4. le mot « associé » plutôt que « causé ».
+
+## 4. Examiner la colinéarité
+
+```{r}
+#| eval: false
+check_collinearity(modele_log)
+```
+
+Discutez:
+
+1. Quel prédicteur présente le VIF le plus élevé?
+2. Pourquoi population, prêts et dépenses pourraient-ils transporter une information semblable?
+3. La colinéarité empêche-t-elle toute prédiction?
+4. Que change-t-elle dans l'interprétation des coefficients individuels?
+
+## Votre conclusion à défendre
+
+Préparez deux phrases:
+
+1. une interprétation conditionnelle du coefficient des prêts;
+2. une réserve sur la stabilité ou l'isolement de ce coefficient.
+
+Conservez-les pour la mission finale.

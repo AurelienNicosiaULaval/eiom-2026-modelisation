@@ -1,0 +1,116 @@
+---
+title: "Mission 1: enquêter avant de modéliser"
+subtitle: "Unité, exclusions, volumes et ratios"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Vous conseillez une équipe qui veut expliquer les visites totales des bibliothèques publiques du Québec. Avant tout ajustement, vous devez décider ce que représente une ligne, quelles observations peuvent être utilisées et si l'analyse doit porter sur des volumes ou des ratios.
+
+Durée: 25 minutes.
+
+Production: un verdict de trois phrases et une preuve graphique.
+
+## 1. Charger les données
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(scales)
+library(patchwork)
+
+bibliotheques <- read_csv(
+  "data/bibliotheques_quebec_2024.csv",
+  show_col_types = FALSE
+)
+```
+
+## 2. Déterminer l'unité et les exclusions
+
+Complétez et exécutez:
+
+```{r}
+#| eval: false
+bibliotheques |>
+  summarise(
+    lignes = n(),
+    regions = n_distinct(region_administrative, na.rm = TRUE),
+    visites_manquantes = sum(is.na(___)),
+    prets_manquants = sum(is.na(___)),
+    depenses_manquantes = sum(is.na(___)),
+    population_manquante = sum(is.na(___))
+  )
+```
+
+Répondez:
+
+1. Que représente une ligne?
+2. Combien de lignes seront exclues du modèle complet?
+3. Quelle population le modèle décrira-t-il après ces exclusions?
+4. Pourquoi faut-il exclure une population nulle avant de calculer son logarithme?
+
+::: {.callout-tip collapse="true"}
+## Indice
+
+Utilisez successivement `visites_total`, `prets_total`, `depenses_fonctionnement_total` et `population_desservie` dans les espaces vides.
+:::
+
+## 3. Préparer les deux lectures
+
+```{r}
+#| eval: false
+bibliotheques_modele <- bibliotheques |>
+  filter(
+    !is.na(visites_total),
+    !is.na(prets_total),
+    !is.na(depenses_fonctionnement_total),
+    !is.na(population_desservie),
+    population_desservie > 0
+  ) |>
+  mutate(
+    log_visites = log1p(visites_total),
+    log_population = log(population_desservie),
+    log_prets = log1p(prets_total),
+    log_depenses = log1p(depenses_fonctionnement_total)
+  )
+```
+
+```{r}
+#| eval: false
+graphique_volumes <- bibliotheques |>
+  ggplot(aes(population_desservie, visites_total)) +
+  geom_point(alpha = 0.6) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title = "Volumes")
+
+graphique_ratios <- bibliotheques |>
+  ggplot(aes(population_desservie, visites_par_habitant)) +
+  geom_point(alpha = 0.6) +
+  scale_x_log10() +
+  labs(title = "Ratios")
+
+graphique_volumes + graphique_ratios
+```
+
+## 4. Prendre une décision
+
+Discutez:
+
+1. Quel graphique décrit le volume de service?
+2. Quel graphique décrit une intensité relative?
+3. Pourquoi une relation entre `visites_par_habitant` et `prets_par_habitant` exige-t-elle une prudence particulière?
+4. Pour expliquer `visites_total`, choisiriez-vous des volumes avec population incluse ou plusieurs ratios par habitant?
+
+## Votre verdict
+
+Rédigez exactement trois phrases:
+
+1. « Une ligne représente... »
+2. « Nous utiliserons... parce que... »
+3. « Notre principale réserve avant l'ajustement est... »
+
+Conservez ces phrases pour la mission finale.

@@ -1,0 +1,136 @@
+---
+title: "Mission finale: auditer et communiquer"
+subtitle: "Diagnostics, sensibilité et note de service"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit vérifier si quelques observations ou une structure résiduelle modifient la confiance accordée au modèle. Vous terminerez par une note de service de cinq phrases destinée à une personne qui doit utiliser le résultat sans voir la sortie R.
+
+Durée: 20 minutes.
+
+Production: une note de service de cinq phrases et une phrase à défendre oralement.
+
+## 1. Reconstituer le modèle
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(broom)
+
+bibliotheques <- read_csv(
+  "data/bibliotheques_quebec_2024.csv",
+  show_col_types = FALSE
+)
+
+bibliotheques_modele <- bibliotheques |>
+  filter(
+    !is.na(visites_total),
+    !is.na(prets_total),
+    !is.na(depenses_fonctionnement_total),
+    !is.na(population_desservie),
+    population_desservie > 0
+  ) |>
+  mutate(
+    log_visites = log1p(visites_total),
+    log_population = log(population_desservie),
+    log_prets = log1p(prets_total),
+    log_depenses = log1p(depenses_fonctionnement_total)
+  )
+
+modele_log <- lm(
+  log_visites ~ log_population + log_prets + log_depenses,
+  data = bibliotheques_modele
+)
+
+diagnostics <- augment(modele_log, data = bibliotheques_modele)
+```
+
+## 2. Examiner les résidus
+
+```{r}
+#| eval: false
+diagnostics |>
+  ggplot(aes(.fitted, .std.resid)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+diagnostics |>
+  ggplot(aes(sample = .std.resid)) +
+  stat_qq() +
+  stat_qq_line()
+```
+
+Choisissez un constat:
+
+- aucune structure préoccupante visible;
+- structure légère qui exige une réserve;
+- structure suffisamment forte pour demander une autre spécification.
+
+Justifiez ce choix avec un élément visible.
+
+## 3. Identifier l'influence
+
+```{r}
+#| eval: false
+diagnostics |>
+  mutate(seuil_cook = 4 / n()) |>
+  arrange(desc(.cooksd)) |>
+  select(bibliotheque, .hat, .std.resid, .cooksd, seuil_cook) |>
+  slice_head(n = 8)
+```
+
+Répondez:
+
+1. Quelle organisation a la plus grande distance de Cook?
+2. Dépasse-t-elle le repère exploratoire `4 / n`?
+3. Pourquoi ne doit-elle pas être supprimée automatiquement?
+
+## 4. Réaliser une analyse de sensibilité
+
+```{r}
+#| eval: false
+seuil_cook <- 4 / nrow(diagnostics)
+
+modele_sensibilite <- diagnostics |>
+  filter(.cooksd <= seuil_cook) |>
+  lm(
+    log_visites ~ log_population + log_prets + log_depenses,
+    data = _
+  )
+
+bind_rows(
+  tidy(modele_log) |> mutate(analyse = "Principale"),
+  tidy(modele_sensibilite) |> mutate(analyse = "Sensibilité")
+) |>
+  filter(term != "(Intercept)") |>
+  select(analyse, term, estimate)
+```
+
+Le message principal reste-t-il semblable? Quel coefficient change le plus?
+
+## 5. Rédiger la note de service
+
+Écrivez exactement cinq phrases:
+
+1. Question: « Nous avons étudié... »
+2. Population: « L'analyse porte sur... »
+3. Résultat: « Parmi des bibliothèques comparables... »
+4. Diagnostic: « L'interprétation doit être nuancée parce que... »
+5. Limite: « Ces données ne permettent pas de conclure que... »
+
+## Vérification avant de remettre
+
+Votre note:
+
+- nomme l'unité statistique;
+- contient un résultat quantifié;
+- utilise « associé » plutôt que « cause »;
+- mentionne la colinéarité ou l'influence;
+- interdit explicitement une conclusion causale.
+
+Choisissez la phrase que votre équipe défendra lors du retour collectif.

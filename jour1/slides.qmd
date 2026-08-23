@@ -1,6 +1,6 @@
 ---
 title: "Comprendre une relation"
-subtitle: "Régression linéaire multiple et diagnostics"
+subtitle: "Régression linéaire multiple, diagnostics et interprétation"
 author: "Aurélien Nicosia"
 suppress-bibliography: true
 link-citations: false
@@ -41,6 +41,7 @@ bibliotheques_modele <- bibliotheques |>
     !is.na(visites_total),
     !is.na(prets_total),
     !is.na(depenses_fonctionnement_total),
+    !is.na(population_desservie),
     population_desservie > 0
   ) |>
   mutate(
@@ -49,14 +50,57 @@ bibliotheques_modele <- bibliotheques |>
     log_prets = log1p(prets_total),
     log_depenses = log1p(depenses_fonctionnement_total)
   )
+
+modele_log <- lm(
+  log_visites ~
+    log_population +
+    log_prets +
+    log_depenses,
+  data = bibliotheques_modele
+)
+
+diagnostics <- augment(modele_log, data = bibliotheques_modele)
 ```
 
-## À la fin de la matinée
+## Le fil de la matinée
 
-Vous saurez construire un modèle linéaire multiple, l'interpréter, le mettre à l'épreuve et dire clairement ce qu'il ne permet pas de conclure.
+| Heure | Travail |
+|---|---|
+| 8 h 45 | Question de départ et brise-glace |
+| 9 h | Bloc 1: construire une question analysable |
+| 9 h 30 | Mission 1 et débrief |
+| 10 h 10 | Pause |
+| 10 h 20 | Bloc 2: ajuster et interpréter le modèle |
+| 10 h 50 | Mission 2 et débrief |
+| 11 h 30 | Bloc 3: mettre le modèle à l'épreuve |
+| 11 h 50 | Mission finale et synthèse |
 
 ::: {.notes}
-2 minutes. Présenter la production finale: une note de service de cinq phrases.
+3 minutes. Montrer que la matinée alterne théorie, participation et missions. Dire que cette présentation restera le fil conducteur jusqu'à 12 h 15.
+:::
+
+## Ce que vous produirez
+
+À 12 h 15, chaque équipe aura produit une note de service de cinq phrases:
+
+1. la question étudiée;
+2. l'unité statistique;
+3. le résultat principal;
+4. le diagnostic qui nuance ce résultat;
+5. la limite qui encadre son utilisation.
+
+<div class="takeaway">Notre objectif n'est pas seulement d'ajuster un modèle, mais de décider ce qu'il permet réellement de dire.</div>
+
+::: {.notes}
+2 minutes. Annoncer la production finale. Demander aux personnes participantes de conserver leurs verdicts des missions 1 et 2: ils serviront à rédiger la note finale.
+:::
+
+::: {.question-slide}
+## Qu'est-ce qui pourrait expliquer la fréquentation d'une bibliothèque?
+:::
+
+::: {.notes}
+5 minutes. Brise-glace. Faire proposer des variables sans les juger: population, prêts, dépenses, emplacement, heures d'ouverture, activités, accessibilité. Classer oralement les propositions en trois groupes: taille, ressources et offre de service.
 :::
 
 ## Une droite peut être convaincante et trompeuse
@@ -78,25 +122,47 @@ bibliotheques_modele |>
   guides(size = guide_legend(title.position = "top"))
 ```
 
+::: {.notes}
+3 minutes. Laisser le groupe décrire le graphique avant de parler du modèle. Ne pas confirmer immédiatement qu'une hausse des prêts entraîne une hausse des visites.
+:::
+
 ::: {.question-slide}
 ## Que faudrait-il vérifier avant de raconter cette relation?
 :::
 
 ::: {.notes}
-8 minutes. Récolter les hypothèses au tableau avant de montrer la liste suivante.
+5 minutes. Récolter au tableau au moins: unité statistique, valeurs manquantes, taille des bibliothèques, forme de la relation, observations atypiques, variables omises et sens de la causalité.
 :::
 
-## Commencer par la question, pas par `lm()`
+## Bloc 1 {.section-slide}
 
-Trois emplois possibles d'un modèle:
+Construire une question analysable
 
-1. décrire une structure observée;
-2. estimer une association conditionnelle;
-3. prédire de nouvelles observations.
+De la ligne de données au choix des variables
 
-<div class="takeaway">Le même modèle peut servir plusieurs emplois, mais ses critères de réussite ne sont pas les mêmes.</div>
+::: {.notes}
+Transition. Annoncer un bloc théorique de 20 minutes suivi de la mission 1.
+:::
 
-## Une ligne représente une organisation
+## Trois usages, trois critères de réussite
+
+1. Décrire une structure observée
+2. Estimer une association conditionnelle
+3. Prédire de nouvelles observations
+
+| Usage | Question prioritaire |
+|---|---|
+| Description | Le résumé représente-t-il correctement les données? |
+| Association | La comparaison conditionnelle est-elle interprétable? |
+| Prédiction | L'erreur sur de nouvelles données est-elle acceptable? |
+
+<div class="takeaway">Un modèle ne devient pas causal simplement parce que son ajustement est bon.</div>
+
+::: {.notes}
+5 minutes. Faire voter à main levée pour l'usage principal de la matinée. Réponse attendue: association conditionnelle, avec une composante descriptive.
+:::
+
+## L'unité statistique détermine la portée
 
 ```{r}
 #| echo: false
@@ -108,7 +174,34 @@ cat("- ", sum(is.na(bibliotheques$visites_total)), " valeurs manquantes pour les
 
 Une ligne n'est pas une personne, une visite individuelle ni une mesure de qualité.
 
-## Pourquoi les ratios changent l'histoire
+::: {.notes}
+4 minutes. Demander: « Si une ligne est une bibliothèque, à qui nos résultats pourront-ils s'appliquer? » Réponse attendue: aux organisations observées ou à des organisations comparables, pas aux comportements individuels.
+:::
+
+## Les données utilisées ne sont jamais toutes les données
+
+```{r}
+#| echo: true
+bibliotheques |>
+  summarise(
+    lignes = n(),
+    visites_manquantes = sum(is.na(visites_total)),
+    population_manquante = sum(is.na(population_desservie))
+  )
+```
+
+Après les exclusions nécessaires, le modèle utilise `r nrow(bibliotheques_modele)` organisations.
+
+Questions à poser avant l'ajustement:
+
+- Qui disparaît de l'analyse?
+- Une absence de donnée signifie-t-elle une absence de service?
+
+::: {.notes}
+4 minutes. Faire calculer mentalement le nombre de lignes exclues: 18. Préciser que 188 moins 170 ne signifie pas que toutes les exclusions proviennent d'une seule variable.
+:::
+
+## Volumes et ratios ne racontent pas la même histoire
 
 ```{r}
 #| echo: false
@@ -131,18 +224,139 @@ p1 + p2
 ```
 
 ::: {.notes}
-Faire nommer la différence entre volume de service et intensité relative.
+4 minutes. Faire nommer la différence: le graphique de gauche décrit un volume de service, celui de droite une intensité relative. Demander lequel répond à la question directrice.
 :::
 
-## Le modèle multiple répond à une question conditionnelle
+## Le dénominateur commun peut fabriquer une histoire
+
+Supposons que l'on analyse:
 
 $$
-Y_i = \beta_0 + \beta_1 X_{i1} + \cdots + \beta_p X_{ip} + \varepsilon_i
+\frac{\text{visites}}{\text{population}}
+\quad\text{en fonction de}\quad
+\frac{\text{prêts}}{\text{population}}.
 $$
 
-Ici, un coefficient décrit la différence moyenne attendue dans la réponse pour une unité de différence dans un prédicteur, les autres prédicteurs inclus étant maintenus constants.
+Les deux variables partagent le même dénominateur. Une variation de la population agit alors simultanément sur les deux axes et peut créer ou renforcer une association [@kronmal1993ratio].
 
-Ce n'est pas automatiquement un effet causal.
+Le modèle principal utilise les volumes et inclut la population explicitement.
+
+::: {.notes}
+4 minutes. Insister sur le fait qu'un ratio n'est pas toujours mauvais. Le problème est de l'utiliser automatiquement sans examiner sa construction et la question scientifique.
+:::
+
+## Pourquoi transformer avec un logarithme?
+
+Pour une variable positive et très asymétrique, le logarithme peut:
+
+- rapprocher les petites et les grandes organisations;
+- rendre une relation multiplicative plus proche d'une relation linéaire;
+- permettre une interprétation en variations relatives;
+- réduire l'influence visuelle des valeurs extrêmes.
+
+$$
+\log(Y_i) = \beta_0 + \beta_1\log(X_i) + \varepsilon_i
+$$
+
+Dans un modèle log-log, $\beta_1$ est une élasticité conditionnelle.
+
+::: {.notes}
+4 minutes. Donner l'intuition: lorsque X augmente d'environ 1 %, Y varie d'environ beta %. Préciser que l'approximation est particulièrement naturelle pour de petites variations.
+:::
+
+::: {.question-slide}
+## Volumes ou ratios: lequel choisiriez-vous pour expliquer les visites totales?
+:::
+
+::: {.notes}
+3 minutes. Faire discuter en binômes pendant 60 secondes, puis récolter deux arguments. Réponse attendue: volumes avec population incluse, car la réponse est le volume total et plusieurs ratios partageraient le même dénominateur.
+:::
+
+## Mission 1 {.mission-slide}
+
+### Enquêter avant de modéliser
+
+Durée: 25 minutes
+
+Votre équipe doit:
+
+1. confirmer l'unité statistique et les exclusions;
+2. comparer volumes et ratios;
+3. choisir une échelle de modélisation;
+4. produire un verdict de trois phrases.
+
+[Ouvrir la mission 1](missions/mission1.qmd){.mission-button target="_blank"}
+
+::: {.notes}
+De 9 h 30 à 9 h 55. Former des équipes de trois ou quatre. Ouvrir la mission dans un nouvel onglet. Pendant le travail, demander à chaque équipe de justifier son choix de variables plutôt que de vérifier seulement le code.
+:::
+
+## Débrief de la mission 1 {.debrief-slide}
+
+Verdict attendu:
+
+- une ligne représente une organisation;
+- le modèle porte sur 170 organisations complètes;
+- les volumes répondent à la question sur la fréquentation totale;
+- la population doit être incluse explicitement;
+- une transformation logarithmique est raisonnable, mais doit être vérifiée par les diagnostics.
+
+::: {.notes}
+De 9 h 55 à 10 h 10. Faire présenter deux équipes. À chaque présentation, demander: « Quelle preuve soutient votre décision? » et « Quelle limite demeure? » Conserver au tableau les mots unité, population, volumes et logarithme.
+:::
+
+## Pause {.pause-slide}
+
+Reprise à 10 h 20
+
+Au retour: ajuster, interpréter et contester le modèle.
+
+## Bloc 2 {.section-slide}
+
+Ajuster et interpréter un modèle multiple
+
+Des coefficients conditionnels à l'incertitude
+
+::: {.notes}
+Reprise à 10 h 20. Résumer la mission 1 en une phrase: nous avons défini ce que représente une ligne et choisi une échelle cohérente avec la question.
+:::
+
+## De la régression simple à la régression multiple
+
+Régression simple:
+
+$$
+Y_i = \beta_0 + \beta_1X_i + \varepsilon_i
+$$
+
+Régression multiple:
+
+$$
+Y_i = \beta_0 + \beta_1X_{i1} + \cdots + \beta_pX_{ip} + \varepsilon_i
+$$
+
+Chaque coefficient répond à une comparaison où les autres prédicteurs inclus sont maintenus constants.
+
+::: {.notes}
+4 minutes. Demander ce que la régression multiple ajoute: elle permet de comparer des organisations semblables selon les autres variables incluses. Ne pas employer le mot « contrôle » sans préciser « statistiquement, parmi les variables incluses ».
+:::
+
+## Les hypothèses portent sur la structure des erreurs
+
+Pour l'estimation et l'inférence usuelles, on examine notamment:
+
+1. une forme moyenne suffisamment bien représentée;
+2. l'indépendance des unités;
+3. une variance résiduelle suffisamment stable;
+4. une forme des résidus compatible avec l'inférence;
+5. l'absence de colinéarité parfaite;
+6. l'absence d'observations contrôlant seules la conclusion.
+
+<div class="takeaway">Une hypothèse n'est pas une formalité à déclarer. C'est une propriété à discuter avec les données et le contexte.</div>
+
+::: {.notes}
+5 minutes. Faire associer oralement chaque hypothèse à une conséquence: courbure, incertitude mal calibrée, coefficients instables ou sensibilité excessive.
+:::
 
 ## Notre modèle de travail
 
@@ -158,7 +372,36 @@ modele_log <- lm(
 tidy(modele_log, conf.int = TRUE)
 ```
 
-## Lire un coefficient sans réciter la sortie
+::: {.notes}
+5 minutes. Exécuter le code en direct si les conditions techniques le permettent. Faire d'abord lire les noms des variables, puis les signes, puis les intervalles. Ne pas commencer par les p-values.
+:::
+
+## Lire un coefficient en quatre morceaux
+
+Une interprétation complète précise:
+
+1. la variable comparée;
+2. l'amplitude de la variation;
+3. la réponse attendue;
+4. les variables maintenues constantes et la nature associative.
+
+Pour le coefficient des prêts:
+
+> Parmi des bibliothèques comparables selon la population desservie et les dépenses incluses au modèle, 1 % de prêts supplémentaires est associé à environ `r round(100 * ((1.01 ^ coef(modele_log)[["log_prets"]]) - 1), 2)` % de visites supplémentaires.
+
+::: {.notes}
+5 minutes. Faire repérer les quatre morceaux dans la phrase. Signaler que les transformations log1p rendent l'interprétation légèrement approximative pour les très petits comptes, mais que les volumes observés sont suffisamment grands pour l'exercice.
+:::
+
+::: {.question-slide}
+## Si les prêts augmentent de 10 %, de combien les visites varient-elles selon le modèle?
+:::
+
+::: {.notes}
+2 minutes. Faire voter entre 0,73 %, 7,3 % et 73 %. Demander une justification avant d'afficher la réponse suivante.
+:::
+
+## Une variation de 10 % n'est pas exactement dix fois 1 %
 
 ```{r}
 #| echo: false
@@ -168,45 +411,141 @@ coefficient_prets <- tidy(modele_log) |>
 
 tibble(
   hausse_des_prets = c("1 %", "10 %", "25 %"),
-  facteur = c(1.01, 1.10, 1.25),
-  variation_visites_pct = 100 * (facteur^coefficient_prets - 1)
+  variation_des_visites = percent(
+    c(1.01, 1.10, 1.25)^coefficient_prets - 1,
+    accuracy = 0.1
+  )
 )
 ```
 
-Le coefficient logarithmique traduit une variation relative de `1 + prêts totaux` en variation relative conditionnelle de `1 + visites totales`.
+Pour 10 % de prêts supplémentaires, l'association estimée est d'environ `r round(100 * (1.10^coefficient_prets - 1), 1)` % de visites supplémentaires, conditionnellement aux autres variables.
 
-## Des prédicteurs peuvent raconter la même histoire
+::: {.notes}
+3 minutes. Montrer le calcul exact: 100 fois 1,10 puissance beta moins 1. Rappeler qu'il s'agit d'une association estimée et non d'une intervention.
+:::
+
+## Quand les prédicteurs racontent la même histoire
+
+Population, prêts et dépenses décrivent tous en partie la taille de l'organisation.
+
+Conséquences possibles de la colinéarité:
+
+- coefficients individuels sensibles;
+- erreurs-types plus grandes;
+- signes ou amplitudes difficiles à interpréter isolément;
+- prédiction globale parfois encore utile.
+
+Elle ne rend pas automatiquement le modèle inutilisable. Elle change la portée des interprétations individuelles.
+
+::: {.notes}
+4 minutes. Utiliser l'analogie de trois témoins qui racontent presque la même information. Il devient difficile d'attribuer précisément la part de chacun.
+:::
+
+## VIF: inflation de la variance
 
 ```{r}
 #| echo: false
-check_collinearity(modele_log)
+#| results: asis
+tableau_vif <- check_collinearity(modele_log) |>
+  as.data.frame() |>
+  transmute(
+    Prédicteur = recode(
+      Term,
+      log_population = "Population",
+      log_prets = "Prêts",
+      log_depenses = "Dépenses"
+    ),
+    VIF = round(VIF, 1),
+    `Tolérance` = round(Tolerance, 2)
+  )
+
+knitr::kable(tableau_vif, align = c("l", "r", "r"))
 ```
 
-Population, prêts et dépenses décrivent tous en partie la taille de l'organisation. La prédiction globale peut rester utile même lorsque les coefficients individuels sont difficiles à isoler.
+<div class="takeaway">Le coefficient des prêts est estimé, mais il ne représente pas une contribution isolée et stable de toute information liée à la taille.</div>
 
-## L'incertitude répond à deux questions différentes
+::: {.notes}
+4 minutes. Ne pas transformer les seuils de VIF en règle mécanique. La conclusion pertinente est comparative: les prédicteurs se recouvrent fortement, donc l'interprétation conditionnelle doit rester prudente.
+:::
 
-- Intervalle de confiance: où se situe la moyenne attendue?
-- Intervalle de prédiction: où pourrait se situer une nouvelle bibliothèque?
+## Deux intervalles répondent à deux questions
 
-L'intervalle de prédiction est plus large parce qu'il inclut la variabilité individuelle.
+| Intervalle | Question |
+|---|---|
+| Confiance | Où se situe la moyenne attendue pour des organisations comparables? |
+| Prédiction | Où pourrait se situer une nouvelle organisation? |
 
-## Un modèle doit survivre à quatre questions
+L'intervalle de prédiction est plus large parce qu'il combine:
 
-1. La forme moyenne est-elle suffisamment bien représentée?
-2. La dispersion des résidus est-elle compatible avec le modèle?
-3. L'inférence est-elle sensible à la forme des résidus?
+- l'incertitude sur la moyenne;
+- la variabilité d'une nouvelle observation autour de cette moyenne.
+
+::: {.notes}
+3 minutes. Demander lequel utiliser pour prévoir la fréquentation d'une bibliothèque précise. Réponse: intervalle de prédiction.
+:::
+
+## Mission 2 {.mission-slide}
+
+### Ajuster, interpréter et défendre
+
+Durée: 25 minutes
+
+Votre équipe doit:
+
+1. ajuster le modèle log-log multiple;
+2. interpréter le coefficient des prêts;
+3. examiner les VIF;
+4. défendre une conclusion avec une réserve.
+
+[Ouvrir la mission 2](missions/mission2.qmd){.mission-button target="_blank"}
+
+::: {.notes}
+De 10 h 50 à 11 h 15. Demander aux équipes de rédiger leur interprétation avant de comparer aux formulations proposées. Circuler en cherchant les mots « associé », « conditionnellement » et « parmi les organisations observées ».
+:::
+
+## Débrief de la mission 2 {.debrief-slide}
+
+Résultats repères:
+
+- coefficient des prêts: environ 0,735;
+- 10 % de prêts supplémentaires: environ 7,3 % de visites supplémentaires;
+- $R^2$ ajusté: environ 0,846;
+- colinéarité forte entre population, prêts et dépenses;
+- conclusion associative, pas causale.
+
+::: {.notes}
+De 11 h 15 à 11 h 30. Faire lire deux interprétations. Demander au groupe laquelle est la plus défendable et pourquoi. Corriger toute formulation qui remplace « est associé à » par « produit », « entraîne » ou « cause ».
+:::
+
+## Bloc 3 {.section-slide}
+
+Mettre le modèle à l'épreuve
+
+Résidus, influence, sensibilité et limites causales
+
+::: {.notes}
+Reprise à 11 h 30. Dire: « Un coefficient bien formulé n'est utile que si le modèle résiste à l'examen de ce qu'il a manqué. »
+:::
+
+## Quatre questions de diagnostic
+
+1. Reste-t-il une structure moyenne dans les résidus?
+2. La dispersion change-t-elle avec les valeurs ajustées?
+3. La forme des résidus fragilise-t-elle l'inférence?
 4. Quelques observations contrôlent-elles la conclusion?
 
-## Les résidus racontent ce que le modèle a manqué
+Un diagnostic ne donne pas toujours une réponse binaire. Il indique souvent où la conclusion doit être nuancée ou vérifiée.
+
+::: {.notes}
+3 minutes. Faire attribuer à chaque question un graphique ou un indicateur: résidus-ajustés, dispersion, QQ-plot, levier et distance de Cook.
+:::
+
+## Que reste-t-il dans les résidus?
 
 ```{r}
 #| echo: false
 #| fig-width: 10
 #| fig-height: 5
-diagnostics <- augment(modele_log) |>
-  mutate(index = row_number())
-
 p_residus <- diagnostics |>
   ggplot(aes(.fitted, .std.resid)) +
   geom_hline(yintercept = 0, linetype = 2, color = "#52606d") +
@@ -214,7 +553,8 @@ p_residus <- diagnostics |>
   geom_smooth(se = FALSE, color = "#b5222e") +
   labs(x = "Valeurs ajustées", y = "Résidus standardisés")
 
-p_qq <- ggplot(diagnostics, aes(sample = .std.resid)) +
+p_qq <- diagnostics |>
+  ggplot(aes(sample = .std.resid)) +
   stat_qq(alpha = 0.65, color = "#277da1") +
   stat_qq_line(color = "#b5222e") +
   labs(x = "Quantiles théoriques", y = "Résidus standardisés")
@@ -222,54 +562,140 @@ p_qq <- ggplot(diagnostics, aes(sample = .std.resid)) +
 p_residus + p_qq
 ```
 
+::: {.notes}
+4 minutes. Demander d'abord ce qui serait rassurant: nuage sans structure autour de zéro et points près de la droite du QQ-plot. Puis faire nommer les écarts visibles sans conclure trop vite à l'invalidité totale.
+:::
+
+## Homoscédasticité et normalité ne jouent pas le même rôle
+
+- Une variance changeante affecte les erreurs-types et les intervalles usuels.
+- Des queues ou des observations extrêmes peuvent fragiliser l'inférence, surtout avec un petit échantillon.
+- La normalité des prédicteurs n'est pas une hypothèse de la régression linéaire.
+- La normalité parfaite des résidus n'est pas nécessaire pour calculer les coefficients des moindres carrés.
+
+<div class="takeaway">On diagnostique les conséquences possibles, pas seulement le respect rituel d'une liste.</div>
+
+::: {.notes}
+4 minutes. Poser le vrai ou faux: « X doit être normal. » Réponse: faux. Puis distinguer estimation des coefficients et inférence usuelle.
+:::
+
 ## Influence ne signifie pas erreur
 
 ```{r}
 #| echo: false
-augment(modele_log, data = bibliotheques_modele) |>
+diagnostics |>
   mutate(seuil_cook = 4 / n()) |>
   arrange(desc(.cooksd)) |>
   select(bibliotheque, visites_total, .hat, .std.resid, .cooksd) |>
   slice_head(n = 6)
 ```
 
-Une observation influente doit être comprise, vérifiée et soumise à une analyse de sensibilité. Elle ne doit pas être supprimée automatiquement.
+Une observation influente doit être:
 
-## Clinique de modèle
+1. identifiée;
+2. vérifiée dans les données sources;
+3. comprise dans son contexte;
+4. soumise à une analyse de sensibilité.
 
-En équipes, choisissez une station:
+Elle ne doit pas être supprimée automatiquement.
 
-1. valeurs manquantes et unité statistique;
-2. forme fonctionnelle et transformation;
-3. résidus, variance et influence;
-4. interprétation et limites causales.
+::: {.notes}
+4 minutes. Faire identifier l'organisation ayant la plus grande distance de Cook: le CRSBP du Bas-Saint-Laurent. Demander si influence signifie erreur. Réponse: non.
+:::
 
-Vous avez 18 minutes, puis 3 minutes pour défendre votre verdict.
+## L'analyse de sensibilité teste la stabilité
 
-## Le piège du dénominateur commun
+```{r}
+#| echo: false
+seuil_cook <- 4 / nrow(diagnostics)
 
-Une analyse tentante exprimerait la réponse et plusieurs prédicteurs par habitant.
+modele_sensibilite <- diagnostics |>
+  filter(.cooksd <= seuil_cook) |>
+  lm(
+    log_visites ~ log_population + log_prets + log_depenses,
+    data = _
+  )
 
-Cela facilite la comparaison de bibliothèques de tailles différentes, mais peut aussi créer ou renforcer des associations parce que plusieurs ratios partagent le même dénominateur. Le modèle principal utilise donc les volumes et inclut la population explicitement [@kronmal1993ratio].
+bind_rows(
+  tidy(modele_log) |> mutate(analyse = "Principale"),
+  tidy(modele_sensibilite) |> mutate(analyse = "Sensibilité")
+) |>
+  filter(term != "(Intercept)") |>
+  select(analyse, term, estimate)
+```
 
-<div class="takeaway">Un bon modèle ne remplace jamais l'examen de la construction des variables.</div>
+Si le message change fortement, cette instabilité fait partie du résultat à communiquer.
 
-## La fiche de modèle en cinq lignes
+::: {.notes}
+3 minutes. Ne pas présenter l'analyse de sensibilité comme un nouveau modèle « vrai ». Elle répond à une question: la conclusion dépend-elle fortement des observations les plus influentes?
+:::
+
+## Association, prédiction et causalité
+
+Le modèle peut décrire des différences observées entre bibliothèques comparables selon les variables incluses.
+
+Il ne permet pas, à lui seul, d'affirmer que:
+
+- augmenter les dépenses causera une hausse des visites;
+- augmenter les prêts provoquera une hausse de fréquentation;
+- la relation observée chez les organisations décrit le comportement individuel des personnes.
+
+Pour une conclusion causale, il faudrait notamment une stratégie d'identification, une temporalité explicite et des données sur les facteurs de confusion pertinents.
+
+::: {.notes}
+4 minutes. Faire corriger oralement: « Les dépenses causent plus de visites. » Formulation attendue: « Des dépenses plus élevées sont associées à davantage de visites parmi des bibliothèques comparables selon les variables incluses. »
+:::
+
+## Mission finale {.mission-slide}
+
+### Auditer le modèle et rédiger la note de service
+
+Durée: 20 minutes
+
+Votre équipe doit:
+
+1. choisir un diagnostic qui modifie l'interprétation;
+2. comparer l'analyse principale et l'analyse de sensibilité;
+3. rédiger une note de service de cinq phrases;
+4. préparer une phrase à défendre devant le groupe.
+
+[Ouvrir la mission finale](missions/mission3.qmd){.mission-button target="_blank"}
+
+::: {.notes}
+De 11 h 50 à 12 h 10. Les équipes réutilisent leurs verdicts précédents. À 12 h 5, annoncer cinq minutes restantes et demander à chaque équipe de choisir sa phrase la plus importante.
+:::
+
+## La fiche de modèle en cinq lignes {.debrief-slide}
 
 1. Question et usage prévu
 2. Population et unité statistique
-3. Variables et transformations
-4. Diagnostics et résultat principal
+3. Variables, échelles et résultat principal
+4. Diagnostic et analyse de sensibilité
 5. Limites et usages interdits
+
+<div class="takeaway">Une bonne conclusion contient à la fois un résultat utilisable et les conditions de son utilisation.</div>
+
+::: {.notes}
+De 12 h 10 à 12 h 13. Faire lire une phrase par deux équipes. Corriger seulement ce qui change réellement la portée scientifique.
+:::
 
 ## Ce que nous emportons
 
+- La question détermine l'unité, la réponse et les variables.
 - Un coefficient multiple est conditionnel aux variables incluses.
-- Un graphique de résidus cherche une structure que le modèle n'a pas apprise.
-- Une observation influente mérite une analyse de sensibilité.
+- La construction des ratios fait partie du modèle.
+- Les résidus montrent ce que le modèle n'a pas appris.
+- Une observation influente exige une analyse de sensibilité.
 - Une association bien estimée n'est pas automatiquement causale.
-- La construction des variables fait partie du modèle.
+
+::: {.notes}
+1 minute. Lire seulement les débuts de phrases et faire compléter la fin par le groupe.
+:::
 
 ::: {.question-slide}
-## Quel diagnostic a le plus changé votre lecture du modèle?
+## Quelle phrase de votre note de service défendriez-vous devant un décideur?
+:::
+
+::: {.notes}
+De 12 h 14 à 12 h 15. Billet de sortie oral ou écrit. Remercier le groupe et annoncer que le lendemain partira d'une probabilité plutôt que d'une réponse continue.
 :::
