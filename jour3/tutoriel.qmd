@@ -1,19 +1,34 @@
 ---
-title: "Tutoriel: trois modèles, une comparaison équitable"
-subtitle: "Régression logistique, arbre et forêt aléatoire"
+title: "Tutoriel: comparer trois modèles sans utiliser le futur"
+subtitle: "Régression logistique, arbre, forêt et validation temporelle"
 format:
   html:
     embed-resources: true
-    code-fold: false
 execute:
   cache: false
 ---
 
 ## Objectif
 
-Comparer trois modèles supervisés dans les mêmes fenêtres temporelles, puis vérifier une seule fois leurs performances sur une période future tenue à l'écart.
+Ce tutoriel construit une comparaison reproductible entre une régression logistique, un arbre de décision et une forêt aléatoire. La question n'est pas seulement de trouver la plus grande aire ROC. Il faut définir le futur à prédire, empêcher les fuites, répéter l'évaluation dans le temps, examiner la stabilité, réserver un test final et relier le choix à un mandat.
 
-## 1. Charger les paquets et les données
+Les données décrivent 18 000 demandes de services citoyennes 311 créées à Montréal en 2024. La cible pédagogique distingue les demandes dont le dernier statut enregistré correspond ou non à une demande terminée dans les sept jours suivant la création. Cette fenêtre n'est pas une norme officielle de service. Elle fournit une définition opérationnelle commune pour apprendre la modélisation prédictive.
+
+## Carte théorique
+
+Le tutoriel suit sept décisions:
+
+1. définir l'unité, la cible et le moment de prédiction;
+2. séparer l'information disponible de l'information future;
+3. réserver un test futur et construire des fenêtres temporelles;
+4. appliquer le même prétraitement aux trois candidats;
+5. comparer discrimination, précision-rappel, Brier et stabilité;
+6. ouvrir le test une seule fois;
+7. documenter le choix, la calibration, les limites et la surveillance.
+
+Un modèle flexible n'est pas automatiquement meilleur. Il peut mieux représenter des relations non linéaires, mais aussi exploiter des particularités qui ne persistent pas. Une comparaison honnête doit donc donner aux candidats le même budget de données et une question identique.
+
+## Préparer l'environnement
 
 ```{r}
 # Load libraries
@@ -21,10 +36,15 @@ library(tidyverse)
 library(tidymodels)
 library(rpart)
 
-# Set graphical theme
-theme_set(theme_minimal(base_size = 13))
+# Set a common visual theme
+theme_set(theme_minimal(base_size = 16))
+```
 
-# Import and prepare the common modeling table
+`tidymodels` charge notamment `rsample`, `recipes`, `parsnip`, `workflows`, `workflowsets`, `tune` et `yardstick`. Le moteur `rpart` ajuste l'arbre. Le moteur `ranger`, appelé plus loin par `parsnip`, ajuste la forêt aléatoire.
+
+## 1. Charger et documenter les données
+
+```{r}
 requetes_ml <- read_csv(
   "data/requetes_311_montreal_2024_eiom.csv",
   show_col_types = FALSE
@@ -41,7 +61,98 @@ requetes_ml <- read_csv(
 glimpse(requetes_ml)
 ```
 
-## 2. Réserver un test futur
+Une ligne représente une demande de service. Le fichier ne décrit pas une personne et ne mesure pas directement la qualité du service. Les processus, les catégories et le transfert de certaines demandes peuvent varier selon le temps ou le territoire.
+
+Vérifions les principaux repères:
+
+```{r}
+resume_source <- requetes_ml |>
+  summarise(
+    lignes = n(),
+    premiere_date = min(date_creation),
+    derniere_date = max(date_creation),
+    activites = n_distinct(activite),
+    territoires = n_distinct(arrondissement),
+    canaux = n_distinct(provenance)
+  )
+
+resume_source
+```
+
+Le fichier contient 18 000 demandes, 351 activités, 27 valeurs territoriales et 9 canaux de provenance. Ces cardinalités expliquent pourquoi le prétraitement devra traiter les catégories rares et nouvelles.
+
+## 2. Définir la cible et le moment de prédiction
+
+La question prédictive est:
+
+> Au moment où une demande est créée, quelle est la probabilité que son dernier statut enregistré ne corresponde pas à une demande terminée dans les sept jours?
+
+Cette formulation fixe quatre éléments:
+
+| Élément | Définition |
+|---|---|
+| unité | une demande de l'échantillon |
+| moment | date de création |
+| événement positif | `non_terminee_7_jours` |
+| sortie du modèle | probabilité conditionnelle |
+
+L'ordre des niveaux du facteur `verite` place l'événement positif en premier. Cette convention sera utilisée par `yardstick` avec `event_level = "first"`.
+
+## 3. Reconnaître la fuite d'information
+
+La réponse est construite en observant ce qui arrive après la création. Cette observation future est nécessaire pour étiqueter les lignes historiques. Elle ne peut pas devenir une information prédictive disponible au moment annoncé.
+
+Variables permises:
+
+- `jour_semaine`;
+- `plage_horaire`;
+- `activite`;
+- `type_lieu`;
+- `arrondissement`;
+- `provenance`.
+
+Variables interdites comme prédicteurs:
+
+- `dernier_statut`;
+- `date_dernier_statut`;
+- `delai_dernier_statut_jours`;
+- `issue_7_jours`, qui est la réponse source.
+
+Une fuite peut produire une performance spectaculaire tout en détruisant la validité opérationnelle. La bonne question n'est pas « cette colonne prédit-elle bien? », mais « sa valeur serait-elle connue lorsque la probabilité doit être produite? ».
+
+## 4. Observer le taux de l'événement dans le temps
+
+```{r}
+frequence_mensuelle <- requetes_ml |>
+  mutate(mois = floor_date(date_creation, unit = "month")) |>
+  summarise(
+    demandes = n(),
+    proportion_non_terminee = mean(verite == "non_terminee_7_jours"),
+    .by = mois
+  )
+
+frequence_mensuelle
+```
+
+```{r}
+ggplot(
+  frequence_mensuelle,
+  aes(mois, proportion_non_terminee)
+) +
+  geom_line(linewidth = 0.9, color = "#0f7c80") +
+  geom_point(size = 2.5, color = "#0f7c80") +
+  scale_y_continuous(labels = scales::label_percent()) +
+  labs(
+    x = NULL,
+    y = "Proportion non terminée en sept jours"
+  )
+```
+
+La fréquence de la cible varie entre les mois. Cette variation peut refléter la composition des demandes, des processus, des saisons ou d'autres mécanismes non observés. Le graphique justifie une évaluation qui respecte l'ordre temporel. Il ne fournit pas une explication causale de la variation.
+
+## 5. Réserver un test futur
+
+Les demandes d'octobre à décembre forment le test final. Les demandes antérieures servent à construire et comparer les candidats.
 
 ```{r}
 date_coupure <- as.Date("2024-10-01")
@@ -52,17 +163,32 @@ entrainement_ml <- requetes_ml |>
 test_ml <- requetes_ml |>
   filter(date_creation >= date_coupure)
 
-tibble(
-  ensemble = c("Entraînement", "Test futur"),
-  n = c(nrow(entrainement_ml), nrow(test_ml)),
-  debut = c(min(entrainement_ml$date_creation), min(test_ml$date_creation)),
-  fin = c(max(entrainement_ml$date_creation), max(test_ml$date_creation))
-)
+resume_partage <- requetes_ml |>
+  mutate(
+    ensemble = if_else(
+      date_creation < date_coupure,
+      "Entraînement",
+      "Test futur"
+    )
+  ) |>
+  summarise(
+    n = n(),
+    debut = min(date_creation),
+    fin = max(date_creation),
+    proportion_non_terminee = mean(verite == "non_terminee_7_jours"),
+    .by = ensemble
+  )
+
+resume_partage
 ```
 
-Le test futur n'intervient ni dans la préparation, ni dans le réglage, ni dans le classement initial des modèles.
+L'entraînement contient 14 351 demandes de janvier à septembre, dont 44,1 % appartiennent à l'événement positif. Le test contient 3 649 demandes d'octobre à décembre, dont 39,6 % appartiennent à cet événement.
 
-## 3. Construire des fenêtres de validation temporelle
+Le test ne sert ni à choisir les prédicteurs, ni à régler les modèles, ni à sélectionner le gagnant initial. Il répond à une question confirmatoire après que ces décisions sont écrites. Tidy Modeling with R insiste sur cette séparation entre le test et les opérations de sélection réalisées dans l'entraînement [@kuhn2022tmwr].
+
+## 6. Construire une validation temporelle
+
+Une seule séparation de l'entraînement serait sensible au mois choisi. Nous créons cinq fenêtres. Chaque fenêtre apprend sur quatre mois consécutifs et évalue le mois suivant.
 
 ```{r}
 plis_temporels <- sliding_period(
@@ -78,7 +204,7 @@ plis_temporels <- sliding_period(
 plis_temporels
 ```
 
-Chaque fenêtre apprend sur quatre mois consécutifs, puis évalue le mois suivant.
+Avec `sliding_period()`, le groupe temporel courant appartient à l'analyse. `lookback = 3` ajoute les trois groupes antérieurs, ce qui produit quatre mois d'apprentissage. `assess_stop = 1` réserve le groupe suivant à l'évaluation.
 
 ```{r}
 resume_plis <- tibble(
@@ -89,10 +215,7 @@ resume_plis <- tibble(
   ),
   periode_entrainement = map_chr(
     plis_temporels$splits,
-    ~ paste(
-      range(analysis(.x)$date_creation),
-      collapse = " au "
-    )
+    ~ paste(range(analysis(.x)$date_creation), collapse = " au ")
   ),
   n_validation = map_int(
     plis_temporels$splits,
@@ -100,67 +223,95 @@ resume_plis <- tibble(
   ),
   periode_validation = map_chr(
     plis_temporels$splits,
-    ~ paste(
-      range(assessment(.x)$date_creation),
-      collapse = " au "
-    )
+    ~ paste(range(assessment(.x)$date_creation), collapse = " au ")
   )
 )
 
 resume_plis
 ```
 
-Une validation aléatoire répondrait à une autre question: le modèle fonctionne-t-il sur des lignes semblables mélangées dans le temps? Ici, la question porte sur le mois suivant.
+Chaque évaluation est strictement postérieure à son apprentissage. Les mois de validation sont mai, juin, juillet, août et septembre.
 
-## 4. Définir une recette commune
+## 7. Comprendre ce que le protocole estime
+
+Une validation aléatoire et une validation temporelle répondent à des questions différentes.
+
+| Protocole | Question approximative |
+|---|---|
+| plis aléatoires | le modèle prédit-il une ligne cachée parmi des observations contemporaines? |
+| fenêtres temporelles | le modèle entraîné récemment prédit-il le mois suivant? |
+
+Le second protocole imite mieux l'usage annoncé. Il révèle aussi la variation de performance entre les mois. Il ne garantit pas que l'année suivante ressemblera à 2024. Il produit une preuve plus pertinente pour cette cible, ce calendrier et ce mécanisme de collecte.
+
+## 8. Définir un prétraitement commun
 
 ```{r}
 recette_ml <- recipe(
-  verite ~
-    jour_semaine +
-    plage_horaire +
-    activite +
-    type_lieu +
-    arrondissement +
-    provenance,
+  verite ~ jour_semaine + plage_horaire + activite +
+    type_lieu + arrondissement + provenance,
   data = entrainement_ml
 ) |>
-  step_novel(
-    all_nominal_predictors(),
-    new_level = "Nouveau"
-  ) |>
-  step_unknown(
-    all_nominal_predictors(),
-    new_level = "Non précisé"
-  ) |>
-  step_other(
-    activite,
-    threshold = 0.01,
-    other = "Autres activités"
-  ) |>
-  step_other(
-    type_lieu,
-    threshold = 0.01,
-    other = "Autres lieux"
-  ) |>
+  step_novel(all_nominal_predictors(), new_level = "Nouveau") |>
+  step_unknown(all_nominal_predictors(), new_level = "Non précisé") |>
+  step_other(activite, threshold = 0.01, other = "Autres activités") |>
+  step_other(type_lieu, threshold = 0.01, other = "Autres lieux") |>
   step_other(
     arrondissement,
     threshold = 0.005,
     other = "Autres territoires"
   ) |>
-  step_other(
-    provenance,
-    threshold = 0.005,
-    other = "Autres canaux"
-  ) |>
+  step_other(provenance, threshold = 0.005, other = "Autres canaux") |>
   step_zv(all_predictors())
 
 recette_ml
 ```
 
-Tous les modèles reçoivent exactement la même information. Les variables qui construisent la réponse demeurent exclues.
+Les étapes ont des rôles distincts:
 
-## 5. Définir les trois modèles
+1. `step_novel()` réserve un niveau pour une catégorie jamais vue à l'apprentissage;
+2. `step_unknown()` transforme une valeur manquante en niveau explicite;
+3. `step_other()` regroupe les catégories trop rares selon l'apprentissage;
+4. `step_zv()` retire un prédicteur sans variation.
+
+La recette n'est pas préparée avec le test ou toutes les validations. Dans `fit_resamples()`, elle est préparée séparément sur l'analyse de chaque fenêtre. Les fréquences qui déterminent les regroupements restent donc internes à l'apprentissage.
+
+## 9. Comprendre un arbre de décision
+
+Un arbre divise récursivement l'espace des prédicteurs. À chaque noeud, une règle sépare les observations en groupes plus homogènes par rapport à la cible. Une feuille terminale produit une probabilité à partir des réponses observées dans cette feuille.
+
+Si une feuille contient 30 demandes, dont 18 appartiennent à l'événement positif, la probabilité estimée est 18 sur 30, soit 0,60. Le passage de cette probabilité à une classe exige encore un seuil. L'arbre n'impose pas à lui seul la décision.
+
+Les arbres représentent naturellement des coupures et des interactions. Leur lisibilité peut être utile lorsque chaque prédiction doit être reliée à un chemin. Cette lisibilité ne garantit pas la stabilité: une petite modification des données peut changer une coupure précoce et donc une grande partie de l'arbre.
+
+## 10. Contrôler le surajustement d'un arbre
+
+Un arbre très profond peut créer des feuilles spécifiques à quelques observations. Son erreur d'entraînement diminue généralement, mais sa performance future peut se dégrader.
+
+Trois paramètres contrôlent la complexité:
+
+| Paramètre | Rôle |
+|---|---|
+| `tree_depth` | limite la longueur des chemins |
+| `min_n` | exige assez de lignes avant une coupure |
+| `cost_complexity` | pénalise une branche dont le gain est trop faible |
+
+Le compromis biais-variance fournit une lecture utile. Un arbre peu profond peut manquer une structure réelle. Un arbre profond peut suivre le bruit. La validation hors échantillon, et non l'erreur d'entraînement seule, doit soutenir le choix.
+
+## 11. Comprendre une forêt aléatoire
+
+Une forêt construit de nombreux arbres à partir de perturbations des observations et des prédicteurs. Chaque arbre voit un rééchantillonnage des lignes. À chaque coupure, seulement un sous-ensemble aléatoire de prédicteurs est candidat. Les probabilités des arbres sont ensuite agrégées [@breiman2001random].
+
+Cette diversité réduit souvent la variance d'un arbre unique. Elle rend toutefois l'explication d'une prédiction plus indirecte. La forêt n'est pas une méthode causalement interprétable et son importance de variable ne mesure pas un effet.
+
+Trois paramètres seront fixés:
+
+- `trees = 200`, nombre d'arbres;
+- `mtry = 4`, prédicteurs candidats à chaque coupure;
+- `min_n = 30`, taille minimale avant une coupure.
+
+Ajouter des arbres peut stabiliser l'agrégation, mais ne corrige pas une cible mal définie, une fuite ou un protocole qui ne correspond pas à l'usage.
+
+## 12. Définir les trois candidats
 
 ```{r}
 modele_logistique <- logistic_reg() |>
@@ -187,107 +338,9 @@ modele_foret <- rand_forest(
   set_mode("classification")
 ```
 
-Les hyperparamètres sont fixés pour garder le tutoriel rapide. Dans un projet complet, leur réglage serait effectué à l'intérieur des données d'entraînement, jamais sur le test futur.
+La régression logistique sert de référence structurée. L'arbre ajoute des coupures et des interactions. La forêt ajoute l'agrégation. Les paramètres sont fixés avant le test. Ce tutoriel compare donc trois candidats définis, pas toutes les versions possibles de ces familles.
 
-## 6. Construire les workflows
-
-```{r}
-ensemble_workflows <- workflow_set(
-  preproc = list(pretraitement = recette_ml),
-  models = list(
-    logistique = modele_logistique,
-    arbre = modele_arbre,
-    foret = modele_foret
-  )
-)
-
-ensemble_workflows
-```
-
-## 7. Évaluer dans les mêmes fenêtres
-
-```{r}
-mesures_ml <- metric_set(
-  roc_auc,
-  pr_auc,
-  brier_class
-)
-
-set.seed(20260828)
-
-resultats_validation <- workflow_map(
-  ensemble_workflows,
-  "fit_resamples",
-  resamples = plis_temporels,
-  metrics = mesures_ml,
-  control = control_resamples(
-    save_workflow = TRUE,
-    verbose = FALSE
-  )
-)
-
-tableau_validation <- collect_metrics(resultats_validation) |>
-  select(wflow_id, .metric, mean, std_err)
-
-tableau_validation
-```
-
-L'aire ROC et l'aire précision-rappel sont meilleures lorsqu'elles sont élevées. Le score de Brier est meilleur lorsqu'il est faible.
-
-```{r}
-tableau_validation |>
-  mutate(
-    modele = recode(
-      wflow_id,
-      pretraitement_logistique = "Logistique",
-      pretraitement_arbre = "Arbre",
-      pretraitement_foret = "Forêt"
-    )
-  ) |>
-  ggplot(aes(mean, fct_reorder(modele, mean), color = modele)) +
-  geom_errorbarh(
-    aes(
-      xmin = mean - 1.96 * std_err,
-      xmax = mean + 1.96 * std_err
-    ),
-    height = 0.15
-  ) +
-  geom_point(size = 3) +
-  facet_wrap(~ .metric, scales = "free_x") +
-  guides(color = "none") +
-  labs(x = "Moyenne des fenêtres temporelles", y = NULL)
-```
-
-Les barres utilisent `1,96 x erreur type` comme repère descriptif. Avec seulement quelques fenêtres temporelles dépendantes, elles ne constituent pas un test universel de différence entre algorithmes.
-
-## 8. Examiner la stabilité entre fenêtres
-
-```{r}
-resultats_par_fenetre <- collect_metrics(
-  resultats_validation,
-  summarize = FALSE
-) |>
-  select(wflow_id, id, .metric, .estimate)
-
-resultats_par_fenetre |>
-  filter(.metric == "roc_auc") |>
-  mutate(
-    modele = recode(
-      wflow_id,
-      pretraitement_logistique = "Logistique",
-      pretraitement_arbre = "Arbre",
-      pretraitement_foret = "Forêt"
-    )
-  ) |>
-  ggplot(aes(id, .estimate, group = modele, color = modele)) +
-  geom_line(linewidth = 0.9) +
-  geom_point(size = 2.5) +
-  labs(x = "Fenêtre de validation", y = "Aire ROC", color = "Modèle")
-```
-
-Un modèle légèrement meilleur en moyenne, mais très instable d'un mois à l'autre, peut être moins défendable.
-
-## 9. Ajuster sur tout l'entraînement
+## 13. Construire les workflows comparables
 
 ```{r}
 modeles <- list(
@@ -296,6 +349,135 @@ modeles <- list(
   foret = modele_foret
 )
 
+ensemble_workflows <- workflow_set(
+  preproc = list(pretraitement = recette_ml),
+  models = modeles
+)
+
+ensemble_workflows
+```
+
+Le prétraitement, les prédicteurs et la cible restent identiques. Seule la spécification du modèle change. Cette symétrie permet de relier une différence de performance à la famille et aux paramètres du candidat plutôt qu'à un avantage caché dans les données.
+
+## 14. Définir les mesures avant les résultats
+
+```{r}
+mesures_ml <- metric_set(
+  roc_auc,
+  pr_auc,
+  brier_class
+)
+```
+
+L'aire ROC mesure la capacité de classement sur tous les seuils. Elle peut être interprétée comme la probabilité qu'une observation positive choisie au hasard reçoive un score supérieur à une observation négative choisie au hasard, sous les conventions de la mesure. Elle n'est pas une exactitude.
+
+L'aire précision-rappel met l'accent sur la récupération de l'événement positif et la précision des prédictions positives. Sa référence dépend de la fréquence de l'événement. Elle est donc utile lorsque l'événement positif et sa prévalence doivent rester visibles.
+
+Le score de Brier est la moyenne de $(y - \widehat p)^2$ pour l'événement positif. Il vaut 0 pour des probabilités parfaites et augmente lorsque les probabilités s'éloignent des résultats. Il combine des aspects de calibration et de résolution, sans remplacer le graphique de calibration.
+
+## 15. Évaluer dans les mêmes fenêtres
+
+```{r}
+set.seed(20260828)
+
+resultats_validation <- workflow_map(
+  ensemble_workflows,
+  "fit_resamples",
+  resamples = plis_temporels,
+  metrics = mesures_ml,
+  control = control_resamples(
+    save_pred = TRUE,
+    save_workflow = TRUE
+  )
+)
+
+tableau_validation <- collect_metrics(resultats_validation) |>
+  transmute(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    ),
+    mesure = .metric,
+    moyenne = mean,
+    erreur_type = std_err
+  )
+
+tableau_validation
+```
+
+La forêt est première en moyenne: aire ROC de 0,726, aire précision-rappel de 0,679 et Brier de 0,210. L'arbre suit avec 0,721, 0,674 et 0,213. La logistique obtient 0,715, 0,663 et 0,214.
+
+Ces écarts sont modestes. Une conclusion doit donc considérer la stabilité et le mandat. Les erreurs types résument la variation des cinq estimations, mais ces fenêtres temporelles se chevauchent et ne sont pas indépendantes. Des intervalles calculés mécaniquement avec 1,96 fois l'erreur type seraient des repères descriptifs, pas un test universel de différence entre algorithmes.
+
+## 16. Examiner la stabilité temporelle
+
+```{r}
+resultats_par_fenetre <- collect_metrics(
+  resultats_validation,
+  summarize = FALSE
+) |>
+  transmute(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    ),
+    pli = id,
+    mesure = .metric,
+    valeur = .estimate
+  )
+
+resultats_par_fenetre |>
+  filter(mesure == "roc_auc") |>
+  ggplot(aes(pli, valeur, group = modele, color = modele)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.5) +
+  labs(
+    x = "Fenêtre de validation",
+    y = "Aire ROC",
+    color = "Modèle"
+  )
+```
+
+```{r}
+stabilite_auc <- resultats_par_fenetre |>
+  filter(mesure == "roc_auc") |>
+  group_by(modele) |>
+  summarise(
+    minimum = min(valeur),
+    maximum = max(valeur),
+    ecart_type = sd(valeur),
+    .groups = "drop"
+  )
+
+stabilite_auc
+```
+
+La forêt varie de 0,704 à 0,748, avec un écart-type d'environ 0,016. L'arbre varie de 0,712 à 0,731, avec un écart-type de 0,007. La logistique varie de 0,705 à 0,725, avec un écart-type de 0,008.
+
+La forêt obtient donc le meilleur résultat moyen, mais la plus grande variation mensuelle dans ce protocole. Ce résultat ne prouve pas que toutes les forêts sont instables. Il décrit ce modèle, ces paramètres, ces données et ces cinq validations.
+
+## 17. Choisir selon un mandat
+
+Un modèle ne peut être choisi sans définir ce que l'organisation valorise.
+
+| Mandat | Critère prioritaire possible |
+|---|---|
+| communication scientifique | structure globale et limites explicables |
+| tri prédictif expérimental | meilleure performance moyenne avec instabilité documentée |
+| règle inspectable | chemin de décision lisible ligne par ligne |
+| infrastructure minimale | coût d'ajustement et de surveillance faible |
+
+Avant le test, une recommandation doit citer au moins deux mesures, la stabilité, un coût et un compromis. Plusieurs recommandations peuvent être cohérentes si les mandats diffèrent. Le test ne doit pas servir à inventer le mandat qui favorise le résultat observé.
+
+## 18. Ajuster sur tout l'entraînement
+
+Après le choix provisoire, nous ajustons les trois pipelines sur janvier à septembre afin de comparer leurs résultats confirmatoires.
+
+```{r}
 workflows_ajustes <- map(
   modeles,
   ~ workflow() |>
@@ -305,7 +487,9 @@ workflows_ajustes <- map(
 )
 ```
 
-## 10. Ouvrir le test futur une seule fois
+Dans une procédure réelle, seuls les modèles nécessaires au plan d'analyse pourraient être ajustés. Nous conservons les trois ici pour comprendre les écarts sans effectuer de nouveau réglage.
+
+## 19. Ouvrir le test futur une seule fois
 
 ```{r}
 predictions_finales <- imap_dfr(
@@ -330,14 +514,108 @@ resultats_test <- predictions_finales |>
     truth = verite,
     .pred_non_terminee_7_jours,
     event_level = "first"
-  )
+  ) |>
+  ungroup()
 
 resultats_test
 ```
 
-Le test vérifie le choix, mais ne doit pas lancer silencieusement une nouvelle ronde de réglage. Une nouvelle décision après examen du test exige de nouvelles données futures.
+Sur le test, la forêt obtient une aire ROC de 0,730, une aire précision-rappel de 0,640 et un Brier de 0,205. L'arbre obtient 0,710, 0,631 et 0,207. La logistique obtient 0,699, 0,600 et 0,212.
 
-## 11. Visualiser l'arbre
+La forêt reste première sur les trois mesures. La recommandation finale dépend toutefois du mandat écrit avant le test. Si le test conduit à modifier le candidat ou les paramètres, cette nouvelle décision devra être confirmée sur une période future indépendante. Le même test ne peut pas servir à modifier et à confirmer le pipeline.
+
+## 20. Comparer validation et test
+
+```{r}
+comparaison_validation_test <- bind_rows(
+  tableau_validation |>
+    transmute(
+      modele,
+      mesure,
+      ensemble = "Validation",
+      valeur = moyenne
+    ),
+  resultats_test |>
+    transmute(
+      modele = recode(
+        modele,
+        logistique = "Logistique",
+        arbre = "Arbre",
+        foret = "Forêt"
+      ),
+      mesure = .metric,
+      ensemble = "Test futur",
+      valeur = .estimate
+    )
+)
+
+comparaison_validation_test |>
+  ggplot(aes(ensemble, valeur, color = modele, group = modele)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.5) +
+  facet_wrap(~ mesure, scales = "free_y") +
+  labs(x = NULL, y = "Valeur", color = "Modèle")
+```
+
+Les aires diminuent davantage pour la logistique et l'arbre que pour la forêt. Le Brier du test est plus faible pour les trois candidats. Cette amélioration ne doit pas être attribuée uniquement au modèle, puisque la proportion de l'événement et la composition des demandes changent aussi.
+
+## 21. Examiner la calibration
+
+La discrimination et la calibration répondent à des questions différentes. Un modèle peut bien classer les demandes tout en produisant des probabilités trop élevées ou trop faibles.
+
+```{r}
+calibration_modeles <- predictions_finales |>
+  group_by(modele) |>
+  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
+  group_by(modele, groupe) |>
+  summarise(
+    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
+    frequence_observee = mean(verite == "non_terminee_7_jours"),
+    n = n(),
+    .groups = "drop"
+  )
+
+ggplot(
+  calibration_modeles,
+  aes(probabilite_moyenne, frequence_observee, color = modele)
+) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = 2,
+    color = "#52606d"
+  ) +
+  geom_line() +
+  geom_point() +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(
+    x = "Probabilité moyenne prédite",
+    y = "Fréquence observée",
+    color = "Modèle"
+  )
+```
+
+La diagonale représente une correspondance parfaite entre probabilité moyenne et fréquence observée dans chaque groupe. Plusieurs points de probabilité élevée se trouvent sous la diagonale, ce qui indique une surestimation locale dans ce test. Les dix groupes rendent le graphique lisible, mais leur choix reste descriptif et dépend de la taille du test.
+
+## 22. Vérifier manuellement le Brier
+
+```{r}
+verification_brier <- predictions_finales |>
+  mutate(
+    indicatrice = as.numeric(verite == "non_terminee_7_jours"),
+    erreur_carree = (
+      indicatrice - .pred_non_terminee_7_jours
+    )^2
+  ) |>
+  group_by(modele) |>
+  summarise(brier_manuel = mean(erreur_carree), .groups = "drop")
+
+verification_brier
+```
+
+Les résultats manuels correspondent à `brier_class()`. Cette vérification est importante parce que la probabilité sélectionnée doit correspondre au niveau défini comme événement. La documentation officielle de `yardstick` précise cette convention pour les réponses binaires.
+
+## 23. Visualiser l'arbre final
 
 ```{r}
 arbre_final <- extract_fit_engine(workflows_ajustes$arbre)
@@ -347,9 +625,11 @@ plot(arbre_final, uniform = TRUE, margin = 0.08)
 text(arbre_final, use.n = TRUE, cex = 0.58)
 ```
 
-Un arbre produit une règle inspectable, mais ses premières coupures peuvent changer lorsque les données ou les hyperparamètres changent.
+L'arbre permet de suivre une suite de règles. Les nombres dans les feuilles décrivent les observations d'entraînement associées à ces règles. Ils ne prouvent pas qu'une coupure serait stable dans une autre année ou qu'elle représente un mécanisme causal.
 
-## 12. Examiner l'importance de la forêt
+L'objet contient 20 coupures avec les paramètres retenus. Une autre pénalité, une autre profondeur ou un autre échantillon pourrait produire une structure différente. La lisibilité doit donc être accompagnée d'une preuve de stabilité.
+
+## 24. Examiner l'importance de la forêt
 
 ```{r}
 importance_foret <- extract_fit_engine(
@@ -363,72 +643,123 @@ importance_foret
 
 ```{r}
 importance_foret |>
-  slice_head(n = 12) |>
   ggplot(aes(importance, fct_reorder(variable, importance))) +
   geom_col(fill = "#0f7c80") +
   labs(x = "Importance par permutation", y = NULL)
 ```
 
-L'importance par permutation mesure une perte de performance lorsque les valeurs d'un prédicteur sont permutées. Elle n'indique ni le sens de l'association, ni un effet causal, ni une importance normative.
+L'activité et l'arrondissement produisent les plus grandes pertes de performance lorsqu'ils sont permutés. L'importance peut être partagée entre des prédicteurs redondants ou corrélés et dépend de la mesure et du modèle. Elle ne donne pas le sens d'une relation, ne mesure pas un effet causal et ne hiérarchise pas la valeur des services ou des territoires.
 
-## 13. Comparer la calibration finale
+## 25. Vérifier les performances par période et sous-groupe
+
+Une moyenne globale peut cacher une dégradation localisée. Avant tout usage réel, il faudrait examiner les volumes, la fréquence de la cible, les mesures et la calibration selon des regroupements définis à l'avance.
+
+Exemple de préparation d'un audit mensuel pour la forêt:
 
 ```{r}
-calibration_modeles <- predictions_finales |>
-  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
-  group_by(modele, groupe) |>
+predictions_foret <- predictions_finales |>
+  filter(modele == "foret") |>
+  mutate(mois = floor_date(date_creation, unit = "month"))
+
+audit_mensuel_foret <- predictions_foret |>
+  group_by(mois) |>
   summarise(
-    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
+    n = n(),
     frequence_observee = mean(verite == "non_terminee_7_jours"),
+    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
+    brier = mean(
+      (
+        as.numeric(verite == "non_terminee_7_jours") -
+          .pred_non_terminee_7_jours
+      )^2
+    ),
     .groups = "drop"
   )
 
-ggplot(
-  calibration_modeles,
-  aes(probabilite_moyenne, frequence_observee, color = modele)
-) +
-  geom_abline(slope = 1, intercept = 0, linetype = 2, color = "#52606d") +
-  geom_line() +
-  geom_point() +
-  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
-  labs(
-    x = "Probabilité moyenne prédite",
-    y = "Fréquence observée",
-    color = "Modèle"
-  )
+audit_mensuel_foret
 ```
 
-Un gain de discrimination ne garantit pas un gain de calibration.
+Une ventilation par arrondissement ou activité demanderait de conserver ces colonnes lors de la construction des prédictions. Les groupes de faible taille devraient être signalés. Un écart descriptif n'établit pas une cause ou une discrimination institutionnelle, mais peut déclencher une investigation.
 
-## 14. Construire une matrice de décision
+## 26. Construire une fiche de modèle
 
-```{r}
-matrice_decision <- tribble(
-  ~critere, ~logistique, ~arbre, ~foret,
-  "Interprétation globale", "Forte", "Moyenne à forte", "Faible à moyenne",
-  "Relations non linéaires", "À spécifier", "Par coupures", "Par ensemble",
-  "Stabilité", "À mesurer", "Souvent faible", "Souvent meilleure que l'arbre",
-  "Coût de calcul", "Faible", "Faible", "Plus élevé",
-  "Calibration", "À vérifier", "À vérifier", "À vérifier",
-  "Choix final", "Selon le mandat", "Selon le mandat", "Selon le mandat"
-)
+Une fiche concise doit contenir:
 
-matrice_decision
-```
+1. la question, l'unité et la population cible;
+2. le moment de prédiction et les variables interdites;
+3. les périodes d'apprentissage, de validation et de test;
+4. le prétraitement, les candidats et les paramètres;
+5. les mesures moyennes et leur stabilité;
+6. la décision selon le mandat et le compromis accepté;
+7. les limites, la surveillance et la condition de retrait.
 
-Le meilleur modèle n'est pas automatiquement celui qui obtient la meilleure valeur sur une seule mesure. Le choix combine performance future, stabilité, interprétabilité, calibration et coût de surveillance.
+Une recommandation qui utilise le test pour changer de modèle doit conserver la trace de la décision initiale. Le candidat révisé n'est pas confirmé par ce même test.
 
-## Extension: provoquer le surajustement
+## 27. Définir une surveillance et une condition de retrait
 
-```{r}
-#| eval: false
-arbre_trop_complexe <- decision_tree(
-  cost_complexity = 0,
-  tree_depth = 25,
-  min_n = 2
-) |>
-  set_engine("rpart") |>
-  set_mode("classification")
-```
+La surveillance peut être organisée en quatre niveaux:
 
-Comparez ce modèle à l'arbre principal dans les mêmes fenêtres. Un meilleur ajustement apparent sur les données d'entraînement n'implique pas une meilleure performance le mois suivant.
+| Niveau | Exemples |
+|---|---|
+| données | volume, catégories nouvelles, valeurs manquantes |
+| cible | fréquence non terminée, définition du statut |
+| prédictions | distribution des scores, groupes extrêmes |
+| performance | aire ROC, aire précision-rappel, Brier, calibration |
+
+Une règle de retrait doit contenir une mesure, une période, un seuil et une action. Par exemple:
+
+> Si le Brier mensuel dépasse 0,24 pendant deux mois consécutifs, suspendre les scores et réexaminer les données, la cible et la calibration.
+
+Le seuil 0,24 est un exemple pédagogique, pas une norme universelle. Dans un projet réel, il devrait être relié à une référence, aux conséquences des erreurs et au mandat.
+
+## 28. Conditions de validité et limites
+
+Les conclusions restent conditionnelles à plusieurs éléments:
+
+1. l'échantillon de demandes créé en 2024;
+2. la définition pédagogique de la cible;
+3. la disponibilité correcte des prédicteurs à la création;
+4. la stabilité du processus de collecte et de statut;
+5. la pertinence des fenêtres de quatre mois pour l'usage visé;
+6. le nombre limité de validations mensuelles;
+7. les paramètres fixés des trois candidats;
+8. l'absence d'une analyse complète par sous-groupe;
+9. l'absence de conclusion causale.
+
+Une performance future observée en 2024 ne garantit pas une performance identique en 2025 ou 2026. Le pipeline doit être réévalué si les catégories, les processus, la cible ou le mandat changent.
+
+## 29. Extensions possibles
+
+Une suite plus avancée pourrait:
+
+1. régler `cost_complexity`, `tree_depth`, `mtry` et `min_n` à l'intérieur des fenêtres;
+2. comparer des fenêtres mobiles et expansives;
+3. utiliser une évaluation imbriquée pour séparer réglage et comparaison;
+4. ajouter des courbes précision-rappel et des intervalles par rééchantillonnage;
+5. recalibrer un candidat à partir de données réservées;
+6. étudier la dérive des prédicteurs;
+7. construire un plan de surveillance par sous-groupe;
+8. comparer le gain prédictif à un modèle de référence simple.
+
+Ces extensions exigent un nouveau budget de données. Le test d'octobre à décembre ne doit pas devenir une ressource illimitée de réglage.
+
+## Lectures complémentaires
+
+| Lecture | Utilité |
+|---|---|
+| [Breiman, Random Forests](https://doi.org/10.1023/A:1010933404324) | construction et motivation originale des forêts aléatoires |
+| [Tidy Modeling with R, rééchantillonnage](https://www.tmwr.org/resampling) | rôle du test, analyses et évaluations répétées |
+| [Documentation de `sliding_period()`](https://rsample.tidymodels.org/reference/slide-resampling.html) | fenêtres basées sur une période et signification de `lookback` |
+| [Documentation de `decision_tree()`](https://parsnip.tidymodels.org/reference/decision_tree.html) | profondeur, taille minimale et pénalité de complexité |
+| [Documentation de `rand_forest()`](https://parsnip.tidymodels.org/reference/rand_forest.html) | nombre d'arbres, `mtry` et `min_n` |
+| [Documentation de `brier_class()`](https://yardstick.tidymodels.org/reference/brier_class.html) | orientation de l'événement et interprétation du score |
+| [Documentation de `step_novel()`](https://recipes.tidymodels.org/reference/step_novel.html) | traitement des catégories futures inconnues |
+| [Documentation de `step_unknown()`](https://recipes.tidymodels.org/reference/step_unknown.html) | traitement explicite des catégories manquantes |
+| [Documentation de `step_other()`](https://recipes.tidymodels.org/reference/step_other.html) | regroupement des catégories rares |
+| [Données ouvertes 311 de Montréal](https://www.donneesquebec.ca/recherche/dataset/vmtl-requete-311) | provenance et documentation de la source |
+
+## Conclusion
+
+Le résultat principal n'est pas qu'une forêt obtient ici la meilleure moyenne et reste première sur le test. La compétence transférable est le protocole: définir le moment de prédiction, protéger le futur, appliquer les mêmes règles, examiner moyenne et stabilité, puis relier le choix à un mandat et à une surveillance.
+
+Un modèle défendable n'est pas seulement un objet ajusté. C'est une décision documentée dont les données, les limites, les conditions d'usage et les raisons de retrait sont explicites.

@@ -1,0 +1,342 @@
+---
+title: "Mission 2: choisir avant le test"
+subtitle: "Comparer moyenne, stabilité et mandat"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit comparer une régression logistique, un arbre et une forêt aléatoire dans les cinq fenêtres définies à la mission 1. Vous devez classer les candidats selon un mandat attribué par la personne animatrice et signer votre choix avant d'ouvrir le test futur.
+
+Durée: 25 minutes.
+
+Production: un tableau comparatif, un classement des trois modèles et une recommandation de six phrases datée et signée par l'équipe.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. expliquer les principaux réglages d'un arbre et d'une forêt;
+2. utiliser les mêmes fenêtres et mesures pour plusieurs modèles;
+3. lire correctement l'aire ROC, l'aire précision-rappel et le score de Brier;
+4. distinguer performance moyenne et stabilité temporelle;
+5. choisir selon un mandat plutôt que selon une seule valeur;
+6. documenter un compromis avant de voir le test final.
+
+## Règle absolue
+
+N'ouvrez pas les résultats d'octobre à décembre. Ne consultez pas la section 14 du tutoriel et n'exécutez aucune prédiction sur `test_ml` avant d'avoir remis votre recommandation signée.
+
+Si votre équipe connaît déjà les résultats à cause d'une lecture antérieure, jouez le rôle d'un comité indépendant: utilisez seulement le tableau de validation fourni dans cette mission et justifiez le choix comme si le test était inconnu.
+
+## 1. Reprendre les objets de la mission 1
+
+Vous devez disposer de:
+
+- `entrainement_ml`, contenant janvier à septembre;
+- `test_ml`, conservé mais non examiné;
+- `plis_temporels`, contenant cinq fenêtres;
+- `recette_ml`, définissant le prétraitement commun.
+
+Pour vérifier l'environnement sans ouvrir le test:
+
+```{r}
+#| eval: false
+nrow(entrainement_ml)
+nrow(plis_temporels)
+recette_ml
+```
+
+Les résultats attendus sont 14 351 lignes d'entraînement et cinq fenêtres.
+
+## 2. Définir les trois candidats
+
+### Régression logistique
+
+```{r}
+#| eval: false
+modele_logistique <- logistic_reg() |>
+  set_engine("glm")
+```
+
+La régression logistique impose une structure globale additive sur l'échelle de la log-cote. Elle sert de référence interprétable et peu coûteuse. Elle ne doit pas être appelée « modèle naïf »: un modèle simple peut généraliser mieux qu'un modèle flexible.
+
+### Arbre de décision
+
+```{r}
+#| eval: false
+modele_arbre <- decision_tree(
+  cost_complexity = 0.001,
+  tree_depth = 10,
+  min_n = 30
+) |>
+  set_engine("rpart") |>
+  set_mode("classification")
+```
+
+Interprétez les trois réglages:
+
+| Réglage | Interprétation |
+|---|---|
+| `cost_complexity` | pénalise les branches dont le gain est trop faible |
+| `tree_depth` | limite le nombre de questions successives |
+| `min_n` | exige assez de lignes avant de recouper un noeud |
+
+Ces valeurs sont fixées avant l'évaluation. La mission compare trois candidats définis, elle ne réalise pas une recherche exhaustive d'hyperparamètres.
+
+### Forêt aléatoire
+
+```{r}
+#| eval: false
+modele_foret <- rand_forest(
+  mtry = 4,
+  min_n = 30,
+  trees = 200
+) |>
+  set_engine(
+    "ranger",
+    importance = "permutation",
+    num.threads = 2
+  ) |>
+  set_mode("classification")
+```
+
+La forêt construit 200 arbres et agrège leurs probabilités. À chaque coupure, quatre prédicteurs sont candidats. L'agrégation cherche à réduire l'instabilité d'un arbre unique, mais augmente le coût et rend l'explication d'une prédiction moins directe.
+
+## 3. Construire un ensemble comparable
+
+```{r}
+#| eval: false
+modeles <- list(
+  logistique = modele_logistique,
+  arbre = modele_arbre,
+  foret = modele_foret
+)
+
+ensemble_workflows <- workflow_set(
+  preproc = list(pretraitement = recette_ml),
+  models = modeles
+)
+
+ensemble_workflows
+```
+
+Le même objet `recette_ml` est combiné aux trois spécifications. Cette structure rend explicite ce qui reste constant et ce qui change. Si chaque équipe utilisait un prétraitement différent, il serait impossible d'attribuer un gain à l'algorithme seul.
+
+## 4. Définir les trois mesures
+
+```{r}
+#| eval: false
+mesures_ml <- metric_set(
+  roc_auc,
+  pr_auc,
+  brier_class
+)
+```
+
+L'événement positif est `non_terminee_7_jours`, placé en premier dans le facteur `verite`.
+
+| Mesure | Question | Meilleur sens |
+|---|---|---|
+| aire ROC | une demande positive reçoit-elle généralement un score plus élevé? | plus élevée |
+| aire précision-rappel | le classement est-il utile pour retrouver l'événement positif? | plus élevée |
+| Brier | les probabilités sont-elles proches des résultats 0 ou 1? | plus faible |
+
+L'aire ROC n'est pas une exactitude. Une aire de 0,72 ne signifie pas que 72 % des demandes sont correctement classées. Le score de Brier utilise ici la probabilité de l'événement placé en premier. Cette orientation doit rester cohérente dans tous les calculs.
+
+## 5. Évaluer les mêmes fenêtres
+
+L'ajustement peut prendre quelques secondes. La graine assure que les étapes aléatoires de la forêt sont reproductibles.
+
+```{r}
+#| eval: false
+set.seed(20260828)
+
+resultats_validation <- workflow_map(
+  ensemble_workflows,
+  "fit_resamples",
+  resamples = plis_temporels,
+  metrics = mesures_ml,
+  control = control_resamples(save_workflow = TRUE)
+)
+
+tableau_validation <- collect_metrics(resultats_validation) |>
+  transmute(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    ),
+    mesure = .metric,
+    moyenne = mean,
+    erreur_type = std_err
+  )
+
+tableau_validation
+```
+
+Résultats repères:
+
+| Modèle | Brier | Aire précision-rappel | Aire ROC |
+|---|---:|---:|---:|
+| logistique | 0,214 | 0,663 | 0,715 |
+| arbre | 0,213 | 0,674 | 0,721 |
+| forêt | 0,210 | 0,679 | 0,726 |
+
+Questions:
+
+1. Quel modèle est premier sur chaque moyenne?
+2. Les écarts sont-ils grands par rapport aux valeurs des mesures?
+3. Peut-on déjà conclure que le même modèle doit être retenu pour tous les mandats?
+4. Quelle information manque encore avant de répondre?
+
+La forêt est première en moyenne sur les trois mesures. Cette observation ne suffit pas encore. Il faut examiner la variation d'un mois à l'autre et les contraintes du mandat.
+
+## 6. Examiner les résultats par fenêtre
+
+```{r}
+#| eval: false
+resultats_par_fenetre <- collect_metrics(
+  resultats_validation,
+  summarize = FALSE
+) |>
+  transmute(
+    modele = recode(
+      wflow_id,
+      pretraitement_logistique = "Logistique",
+      pretraitement_arbre = "Arbre",
+      pretraitement_foret = "Forêt"
+    ),
+    pli = id,
+    mesure = .metric,
+    valeur = .estimate
+  )
+
+resultats_par_fenetre |>
+  filter(mesure == "roc_auc") |>
+  ggplot(aes(pli, valeur, group = modele, color = modele)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.5) +
+  labs(
+    x = "Fenêtre de validation",
+    y = "Aire ROC",
+    color = "Modèle"
+  )
+```
+
+Calculez un résumé simple de stabilité:
+
+```{r}
+#| eval: false
+stabilite_auc <- resultats_par_fenetre |>
+  filter(mesure == "roc_auc") |>
+  group_by(modele) |>
+  summarise(
+    minimum = min(valeur),
+    maximum = max(valeur),
+    ecart_type = sd(valeur),
+    .groups = "drop"
+  )
+
+stabilite_auc
+```
+
+Résultats repères:
+
+| Modèle | Minimum | Maximum | Écart-type |
+|---|---:|---:|---:|
+| arbre | 0,712 | 0,731 | 0,007 |
+| forêt | 0,704 | 0,748 | 0,016 |
+| logistique | 0,705 | 0,725 | 0,008 |
+
+La forêt a la meilleure moyenne, mais la variation la plus forte dans ces cinq mois. Cette variation ne prouve pas une instabilité universelle des forêts. Elle décrit ces candidats, ces paramètres et ces périodes.
+
+## 7. Recevoir un mandat
+
+La personne animatrice attribue une carte à votre équipe.
+
+### Carte A: communication scientifique
+
+Le modèle doit soutenir une synthèse globale facilement explicable. Une petite perte prédictive est acceptable si l'interprétation est nettement plus claire.
+
+### Carte B: tri prédictif expérimental
+
+Le projet pilote veut classer les demandes pour une analyse interne. La performance moyenne est prioritaire, mais une forte instabilité doit être documentée.
+
+### Carte C: règle inspectable
+
+Chaque prédiction doit pouvoir être retracée à une suite de règles. L'organisation accepte une perte mesurée de performance pour gagner cette inspectabilité.
+
+### Carte D: infrastructure minimale
+
+Le modèle doit être recalculé, surveillé et expliqué avec peu de ressources. Le gain d'un modèle plus coûteux doit être assez grand pour justifier son entretien.
+
+Écrivez le nom de votre carte au haut de votre production.
+
+## 8. Construire la matrice de décision
+
+Attribuez une appréciation argumentée à chaque cellule. N'utilisez pas une moyenne mécanique pour éviter la discussion. Les critères n'ont pas la même importance dans chaque mandat.
+
+| Critère | Logistique | Arbre | Forêt |
+|---|---|---|---|
+| aire ROC moyenne | | | |
+| aire précision-rappel moyenne | | | |
+| Brier moyen | | | |
+| stabilité de l'aire ROC | | | |
+| explication globale | | | |
+| explication d'une ligne | | | |
+| coût de calcul et surveillance | | | |
+
+Pour chaque modèle, notez:
+
+1. sa meilleure preuve;
+2. sa principale faiblesse;
+3. le critère du mandat qu'il sert le mieux.
+
+## 9. Signer le choix avant le test
+
+Votre recommandation doit contenir exactement six phrases:
+
+1. Notre mandat est...
+2. Nous retenons provisoirement le modèle...
+3. La première preuve chiffrée est...
+4. La seconde preuve, portant sur la stabilité, est...
+5. Nous acceptons le compromis suivant...
+6. Nous réviserons cette décision si le test futur montre...
+
+Ajoutez la date, les initiales des membres de l'équipe et l'heure de la décision. Ne modifiez plus ce texte après l'ouverture du test. Si vous changez ensuite de choix, conservez les deux versions et expliquez la raison.
+
+## Contre-interrogatoire
+
+Échangez votre recommandation avec une autre équipe. La personne sceptique adverse pose trois questions:
+
+1. Avez-vous lu les trois mesures dans le bon sens?
+2. Votre argument de stabilité repose-t-il sur les cinq fenêtres?
+3. Votre choix répond-il réellement au mandat ou seulement au meilleur score moyen?
+
+Répondez sans ajouter de résultat provenant du test futur.
+
+## Erreurs fréquentes à éviter
+
+- Appeler l'aire ROC « pourcentage de bonnes classifications ».
+- Dire que le Brier le plus élevé est meilleur.
+- Choisir la forêt uniquement parce qu'elle est plus complexe.
+- Choisir la logistique uniquement parce qu'elle est familière.
+- Généraliser l'instabilité observée à tous les arbres ou toutes les forêts.
+- Consulter le test pour départager deux recommandations proches.
+- Modifier le mandat après avoir vu le classement.
+
+## Vérification avant de remettre
+
+- Les trois modèles ont reçu la même recette.
+- Les mêmes cinq fenêtres et les mêmes trois mesures sont utilisées.
+- L'événement positif est correctement identifié.
+- Moyenne et stabilité sont toutes deux discutées.
+- Le mandat attribué apparaît dans la recommandation.
+- Le classement contient trois positions, pas seulement un gagnant.
+- Le compromis accepté est explicite.
+- Le test d'octobre à décembre n'a pas été consulté.
+- La recommandation est datée et signée.

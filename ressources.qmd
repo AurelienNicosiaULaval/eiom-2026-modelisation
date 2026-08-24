@@ -48,6 +48,21 @@ Pour l'évaluation des modèles binaires, la courbe ROC est présentée comme un
 | [Van Calster et ses collègues](https://doi.org/10.1186/s12916-019-1466-7) | Pourquoi la calibration doit être examinée séparément de la discrimination. |
 | [Documentation CRAN de `titanic`](https://CRAN.R-project.org/package=titanic) | Provenance, structure et variables du jeu `titanic_train`. |
 
+## Lectures complémentaires du jour 3
+
+| Lecture | Utilité |
+|---|---|
+| [Breiman, Random Forests](https://doi.org/10.1023/A:1010933404324) | Construction et motivation originale des forêts aléatoires. |
+| [Kuhn et Silge, rééchantillonnage](https://www.tmwr.org/resampling) | Rôle du test, analyses et évaluations répétées. |
+| [Documentation de `sliding_period()`](https://rsample.tidymodels.org/reference/slide-resampling.html) | Fenêtres temporelles et signification de `lookback`. |
+| [Documentation de `decision_tree()`](https://parsnip.tidymodels.org/reference/decision_tree.html) | Profondeur, taille minimale et pénalité de complexité. |
+| [Documentation de `rand_forest()`](https://parsnip.tidymodels.org/reference/rand_forest.html) | Nombre d'arbres, `mtry` et `min_n`. |
+| [Documentation de `brier_class()`](https://yardstick.tidymodels.org/reference/brier_class.html) | Orientation de l'événement et interprétation du score de Brier. |
+| [Documentation de `step_novel()`](https://recipes.tidymodels.org/reference/step_novel.html) | Traitement des catégories futures jamais observées. |
+| [Documentation de `step_unknown()`](https://recipes.tidymodels.org/reference/step_unknown.html) | Traitement explicite des catégories manquantes. |
+| [Documentation de `step_other()`](https://recipes.tidymodels.org/reference/step_other.html) | Regroupement des catégories rares. |
+| [Données ouvertes 311 de Montréal](https://www.donneesquebec.ca/recherche/dataset/vmtl-requete-311) | Provenance, structure et limites de la source. |
+
 ## Sources de données
 
 Les données du jour 1 décrivent 2 930 ventes résidentielles à Ames, en Iowa, et sont accessibles dans le paquet R `AmesHousing` [@decock2011ames; @kuhn2020ameshousing]. Le jour 2 utilise l'échantillon individuel `titanic_train` du paquet `titanic` [@hendricks2015titanic]. Les demandes de services citoyennes utilisées au jour 3 proviennent du système 311 de la Ville de Montréal [@montreal2026requete311].

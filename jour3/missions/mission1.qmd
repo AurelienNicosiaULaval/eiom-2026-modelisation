@@ -1,0 +1,292 @@
+---
+title: "Mission 1: protéger le futur"
+subtitle: "Définir la prédiction et verrouiller le protocole"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre équipe doit concevoir une comparaison honnête de trois modèles capables d'estimer, au moment où une demande 311 est créée, la probabilité qu'elle ne soit pas terminée dans les sept jours. Vous ne choisirez encore aucun modèle. Vous devez d'abord définir la question, distinguer les informations permises des informations futures et construire des fenêtres qui imitent l'usage annoncé.
+
+Durée: 25 minutes.
+
+Production: un protocole d'une page contenant la définition de la prédiction, les variables permises et interdites, le calendrier des fenêtres et cinq règles de comparaison équitable.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. définir l'unité, la cible, l'événement positif et le moment de prédiction;
+2. reconnaître une fuite d'information;
+3. expliquer pourquoi le test futur reste fermé pendant le choix;
+4. distinguer une validation aléatoire d'une validation temporelle;
+5. construire des fenêtres où l'évaluation suit toujours l'apprentissage;
+6. expliquer pourquoi le prétraitement doit être appris dans chaque fenêtre.
+
+## Organisation de l'équipe
+
+La personne pilote exécute le code. La personne interprète complète les phrases. La personne gardienne du futur contrôle chaque date et chaque variable. La personne sceptique tente de trouver une information qui n'aurait pas été disponible lors de la création d'une demande.
+
+Avant d'ouvrir R, chaque personne répond à cette question:
+
+> Quelle colonne du fichier donnerait une excellente prédiction tout en rendant l'évaluation inutile?
+
+Les candidats naturels sont le dernier statut, sa date et le délai final. Ils décrivent ce qui arrive après la création. Ils peuvent servir à construire la cible, mais pas à prédire au moment annoncé.
+
+## Repères sur les données
+
+Le fichier contient un échantillon pédagogique déterministe de 18 000 demandes créées en 2024. Une ligne représente une demande de service, pas une personne. La cible `issue_7_jours` vaut `non_terminee_7_jours` lorsque le dernier statut enregistré ne correspond pas à une demande terminée dans la fenêtre pédagogique de sept jours.
+
+Cette définition ne constitue pas une norme officielle de la Ville de Montréal. Elle fournit une cible commune pour apprendre à comparer des modèles. Les données proviennent du jeu ouvert des requêtes 311 de la Ville de Montréal.
+
+## 1. Charger et préparer
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(tidymodels)
+
+requetes_ml <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+) |>
+  mutate(
+    date_creation = as.Date(date_creation),
+    verite = factor(
+      issue_7_jours,
+      levels = c("non_terminee_7_jours", "terminee_7_jours")
+    )
+  ) |>
+  arrange(date_creation, identifiant_requete)
+
+glimpse(requetes_ml)
+```
+
+Vérifiez les quatre repères suivants:
+
+```{r}
+#| eval: false
+requetes_ml |>
+  summarise(
+    lignes = n(),
+    premiere_date = min(date_creation),
+    derniere_date = max(date_creation),
+    activites = n_distinct(activite)
+  )
+```
+
+Vous devriez obtenir 18 000 lignes, des dates du 1er janvier au 31 décembre 2024 et 351 activités distinctes. Le nombre élevé d'activités motive plus tard le regroupement des catégories rares.
+
+## 2. Écrire la définition avant le modèle
+
+Complétez les phrases suivantes sans utiliser le nom d'un algorithme:
+
+1. Une ligne représente...
+2. Au moment où..., nous voulons estimer...
+3. L'événement positif est...
+4. La population immédiate est...
+5. La décision pédagogique possible serait...
+
+Une formulation complète peut commencer ainsi:
+
+> Pour une demande de l'échantillon 2024, au moment de sa création, nous estimons la probabilité que le dernier statut enregistré ne corresponde pas à une demande terminée dans les sept jours.
+
+Cette phrase distingue une probabilité d'un résultat individuel. Elle précise aussi le moment qui détermine quelles variables sont permises.
+
+## 3. Classer les variables
+
+Complétez ce tableau. N'utilisez pas seulement l'intuition. Pour chaque colonne, demandez si sa valeur serait connue au moment de la création.
+
+| Variable | Disponible à la création? | Rôle |
+|---|---|---|
+| `jour_semaine` | oui | prédicteur permis |
+| `plage_horaire` | oui | prédicteur permis |
+| `activite` | oui | prédicteur permis |
+| `type_lieu` | oui | prédicteur permis |
+| `arrondissement` | oui | prédicteur permis |
+| `provenance` | oui | prédicteur permis |
+| `dernier_statut` | non | information future interdite |
+| `date_dernier_statut` | non | information future interdite |
+| `delai_dernier_statut_jours` | non | information future interdite |
+| `issue_7_jours` | construite après observation | réponse seulement |
+
+Expliquez en une phrase pourquoi une variable peut être permise pour construire la réponse et interdite comme prédicteur.
+
+## 4. Réserver le test futur
+
+Les trois derniers mois jouent le rôle d'un futur indépendant. Le test est créé maintenant, mais ses résultats ne doivent pas être utilisés pour choisir les variables, les paramètres ou le modèle.
+
+```{r}
+#| eval: false
+date_coupure <- as.Date("2024-10-01")
+
+entrainement_ml <- requetes_ml |>
+  filter(date_creation < date_coupure)
+
+test_ml <- requetes_ml |>
+  filter(date_creation >= date_coupure)
+
+tibble(
+  ensemble = c("Entraînement", "Test futur"),
+  n = c(nrow(entrainement_ml), nrow(test_ml)),
+  debut = c(
+    min(entrainement_ml$date_creation),
+    min(test_ml$date_creation)
+  ),
+  fin = c(
+    max(entrainement_ml$date_creation),
+    max(test_ml$date_creation)
+  )
+)
+```
+
+Résultats repères:
+
+| Ensemble | Nombre de lignes | Période |
+|---|---:|---|
+| entraînement | 14 351 | janvier à septembre |
+| test futur | 3 649 | octobre à décembre |
+
+La taille du test n'est pas un argument pour l'ouvrir plus tôt. Son rôle est différent: il doit confirmer une décision déjà écrite.
+
+## 5. Construire cinq fenêtres temporelles
+
+À l'intérieur de janvier à septembre, chaque candidat apprend sur quatre mois consécutifs et prédit le mois suivant.
+
+```{r}
+#| eval: false
+plis_temporels <- sliding_period(
+  entrainement_ml,
+  index = date_creation,
+  period = "month",
+  lookback = 3,
+  assess_stop = 1,
+  complete = TRUE,
+  step = 1
+)
+
+plis_temporels
+```
+
+Dans `sliding_period()`, le groupe courant est inclus dans l'apprentissage. Par conséquent, `lookback = 3` produit quatre mois d'apprentissage. `assess_stop = 1` place le mois suivant dans l'évaluation.
+
+Construisez le tableau détaillé:
+
+```{r}
+#| eval: false
+resume_plis <- tibble(
+  pli = plis_temporels$id,
+  n_entrainement = map_int(
+    plis_temporels$splits,
+    ~ nrow(analysis(.x))
+  ),
+  periode_entrainement = map_chr(
+    plis_temporels$splits,
+    ~ paste(range(analysis(.x)$date_creation), collapse = " au ")
+  ),
+  n_validation = map_int(
+    plis_temporels$splits,
+    ~ nrow(assessment(.x))
+  ),
+  periode_validation = map_chr(
+    plis_temporels$splits,
+    ~ paste(range(assessment(.x)$date_creation), collapse = " au ")
+  )
+)
+
+resume_plis
+```
+
+Vérifiez que chaque période de validation commence après la fin de sa période d'apprentissage. Les mois de validation sont mai, juin, juillet, août et septembre.
+
+## 6. Comparer deux protocoles
+
+Une validation aléatoire mélange des lignes provenant de différentes périodes. Elle peut être pertinente si la question est de prédire une ligne cachée parmi des observations contemporaines. Elle répond mal à une question de déploiement dans le mois suivant lorsque les volumes, activités ou processus peuvent évoluer.
+
+Complétez le tableau:
+
+| Question | Plis aléatoires | Fenêtres temporelles |
+|---|---|---|
+| l'ordre des dates est-il respecté? | non | oui |
+| le protocole imite-t-il le mois suivant? | faiblement | oui |
+| janvier peut-il être validé avec août? | oui | non |
+| quelle généralisation est étudiée? | lignes contemporaines | période future |
+
+Rédigez une phrase qui commence par:
+
+> Nous retenons les fenêtres temporelles parce que...
+
+## 7. Verrouiller le prétraitement
+
+Les variables catégorielles posent trois difficultés: une valeur peut manquer, une catégorie peut être rare et une catégorie future peut ne jamais avoir été observée dans l'apprentissage. Ces problèmes doivent être traités avec une recette réestimée dans chaque fenêtre.
+
+```{r}
+#| eval: false
+recette_ml <- recipe(
+  verite ~ jour_semaine + plage_horaire + activite +
+    type_lieu + arrondissement + provenance,
+  data = entrainement_ml
+) |>
+  step_novel(all_nominal_predictors(), new_level = "Nouveau") |>
+  step_unknown(all_nominal_predictors(), new_level = "Non précisé") |>
+  step_other(activite, threshold = 0.01, other = "Autres activités") |>
+  step_other(type_lieu, threshold = 0.01, other = "Autres lieux") |>
+  step_other(
+    arrondissement,
+    threshold = 0.005,
+    other = "Autres territoires"
+  ) |>
+  step_other(provenance, threshold = 0.005, other = "Autres canaux") |>
+  step_zv(all_predictors())
+```
+
+La recette ne doit pas être préparée une fois avec les 18 000 lignes. `fit_resamples()` la prépare séparément sur la partie d'apprentissage de chaque fenêtre. Cela évite que les fréquences des catégories de validation influencent le regroupement.
+
+## 8. Écrire les cinq règles de comparaison
+
+Votre protocole final doit contenir ces cinq règles, reformulées avec vos mots:
+
+1. tous les modèles prédisent le même événement au même moment;
+2. seuls les prédicteurs disponibles à la création sont permis;
+3. le prétraitement est identique et réappris dans chaque fenêtre;
+4. tous les candidats utilisent les mêmes fenêtres et les mêmes mesures;
+5. le choix est écrit avant l'ouverture du test d'octobre à décembre.
+
+Ajoutez une sixième règle propre à votre équipe. Elle peut porter sur la reproductibilité, le traitement d'une erreur, la stabilité ou la documentation d'une modification.
+
+## Si votre équipe bloque
+
+Revenez à cette grille:
+
+| Élément | Réponse attendue |
+|---|---|
+| unité | une demande de service |
+| événement positif | non terminée dans les sept jours |
+| moment de prédiction | création de la demande |
+| apprentissage global | janvier à septembre |
+| validations | mai à septembre, un mois à la fois |
+| test fermé | octobre à décembre |
+| fuite évidente | dernier statut, date ou délai final |
+| traitement des catégories | appris dans chaque fenêtre |
+
+## Votre verdict
+
+Rédigez exactement quatre phrases:
+
+1. question prédictive, unité et moment de prédiction;
+2. variables permises et principales fuites interdites;
+3. calendrier d'apprentissage, de validation et de test;
+4. raison pour laquelle le protocole imite mieux un usage futur qu'un partage aléatoire.
+
+## Vérification avant de remettre
+
+- L'événement positif est nommé explicitement.
+- Le dernier statut n'est jamais utilisé comme prédicteur.
+- Les trois derniers mois restent fermés.
+- Chaque validation suit sa période d'apprentissage.
+- Le rôle de `lookback = 3` est correctement expliqué.
+- Le prétraitement est appris dans les fenêtres, pas avec tout le fichier.
+- Les cinq règles de comparaison sont présentes.
+- La cible de sept jours n'est pas présentée comme une norme officielle.

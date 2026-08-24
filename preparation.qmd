@@ -29,6 +29,7 @@ library(tidyverse)
 library(tidymodels)
 library(AmesHousing)
 library(titanic)
+library(rpart)
 
 # Load the Day 1 data set
 ames <- make_ames()
@@ -40,9 +41,16 @@ dim(ames)
 # Load the Day 2 data set
 data("titanic_train")
 dim(titanic_train)
+
+# Load the Day 3 data set
+requetes_311 <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+)
+dim(requetes_311)
 ```
 
-Vous devriez obtenir 2 930 lignes et 81 colonnes pour Ames, puis 891 lignes et 12 colonnes pour `titanic_train`. Les 342 valeurs égales à 1 dans `Survived` correspondent aux passagers enregistrés comme ayant survécu dans cet échantillon [@hendricks2015titanic].
+Vous devriez obtenir 2 930 lignes et 81 colonnes pour Ames, 891 lignes et 12 colonnes pour `titanic_train`, puis 18 000 lignes et 15 colonnes pour les demandes 311. Les 342 valeurs égales à 1 dans `Survived` correspondent aux passagers enregistrés comme ayant survécu dans l'échantillon Titanic [@hendricks2015titanic].
 
 ## Test de modélisation
 

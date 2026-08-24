@@ -36,6 +36,9 @@ required_files <- c(
   "jour3/slides.qmd",
   "jour3/tutoriel.qmd",
   "jour3/pratique.qmd",
+  "jour3/missions/mission1.qmd",
+  "jour3/missions/mission2.qmd",
+  "jour3/missions/mission3.qmd",
   "projet-integrateur.qmd"
 )
 
@@ -48,6 +51,9 @@ private_files <- c(
   "instructeur/audit-pedagogique-jour2.qmd",
   "instructeur/conducteur-matinee2.qmd",
   "instructeur/corriges/jour2.qmd",
+  "instructeur/audit-pedagogique-jour3.qmd",
+  "instructeur/conducteur-matinee3.qmd",
+  "instructeur/script-demo-jour3.R",
   "instructeur/corriges/jour3.qmd"
 )
 
@@ -138,5 +144,16 @@ stopifnot(
 )
 stopifnot(min(requetes_311$date_creation) >= as.Date("2024-01-01"))
 stopifnot(max(requetes_311$date_creation) < as.Date("2025-01-01"))
+stopifnot(sum(requetes_311$date_creation < as.Date("2024-10-01")) == 14351L)
+stopifnot(sum(requetes_311$date_creation >= as.Date("2024-10-01")) == 3649L)
+stopifnot(sum(requetes_311$issue_7_jours == "non_terminee_7_jours") == 7772L)
+
+jour3_slide_count <- sum(
+  str_detect(
+    readLines("jour3/slides.qmd", warn = FALSE),
+    "^##\\s+"
+  )
+)
+stopifnot(jour3_slide_count == 46L)
 
 message("Validation structurelle réussie.")

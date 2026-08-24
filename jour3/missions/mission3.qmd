@@ -1,0 +1,381 @@
+---
+title: "Mission 3: ouvrir le futur et décider"
+subtitle: "Confirmer, surveiller et rédiger la fiche modèle"
+format:
+  html:
+    embed-resources: true
+---
+
+## Votre mandat
+
+Votre recommandation de la mission 2 est maintenant figée. Votre équipe peut ouvrir le test futur d'octobre à décembre. Vous devez comparer les résultats à ceux de la validation, examiner la calibration et l'importance prédictive, puis maintenir ou réviser explicitement la décision. La production finale est une fiche de modèle accompagnée d'une règle de retrait.
+
+Durée: 25 minutes.
+
+Production: une fiche de modèle en sept rubriques, une décision finale et une règle de surveillance qui contient une mesure, une période, un seuil et une action.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. expliquer le rôle confirmatoire d'un test futur;
+2. comparer validation et test sans recycler silencieusement le test;
+3. distinguer discrimination et calibration;
+4. interpréter prudemment une importance par permutation;
+5. identifier des vérifications nécessaires avant un usage réel;
+6. documenter le maintien ou la révision d'une décision;
+7. proposer une condition de surveillance et de retrait.
+
+## Avant d'ouvrir
+
+Relisez la recommandation signée à la mission 2. Recopiez ces quatre éléments dans votre fiche:
+
+1. le mandat;
+2. le modèle retenu;
+3. les preuves de validation;
+4. le compromis accepté.
+
+Votre texte initial ne doit pas être effacé. Il constitue la trace de la décision prise sans connaître le test.
+
+## 1. Ajuster sur tout l'entraînement
+
+Les paramètres et le prétraitement restent ceux de la mission 2. Chaque candidat est maintenant ajusté sur toutes les demandes de janvier à septembre.
+
+```{r}
+#| eval: false
+modeles <- list(
+  logistique = modele_logistique,
+  arbre = modele_arbre,
+  foret = modele_foret
+)
+
+workflows_ajustes <- map(
+  modeles,
+  ~ workflow() |>
+    add_recipe(recette_ml) |>
+    add_model(.x) |>
+    fit(data = entrainement_ml)
+)
+```
+
+Cette étape n'utilise encore aucun résultat du test. Elle entraîne les trois pipelines exactement comme ils auraient été déployés après le choix.
+
+## 2. Produire les probabilités futures
+
+```{r}
+#| eval: false
+predictions_finales <- imap_dfr(
+  workflows_ajustes,
+  function(ajustement, nom_modele) {
+    bind_cols(
+      test_ml |>
+        select(date_creation, verite),
+      predict(
+        ajustement,
+        new_data = test_ml,
+        type = "prob"
+      )
+    ) |>
+      mutate(modele = nom_modele)
+  }
+)
+
+glimpse(predictions_finales)
+```
+
+La colonne `.pred_non_terminee_7_jours` est la probabilité de l'événement positif. Elle doit être utilisée avec `event_level = "first"`. Une incohérence entre la colonne de probabilité et le niveau de l'événement fausserait l'interprétation du Brier et des mesures de classement.
+
+## 3. Évaluer le test une fois
+
+```{r}
+#| eval: false
+mesures_ml <- metric_set(
+  roc_auc,
+  pr_auc,
+  brier_class
+)
+
+resultats_test <- predictions_finales |>
+  group_by(modele) |>
+  mesures_ml(
+    truth = verite,
+    .pred_non_terminee_7_jours,
+    event_level = "first"
+  ) |>
+  ungroup()
+
+resultats_test
+```
+
+Résultats repères:
+
+| Modèle | Aire ROC | Aire précision-rappel | Brier |
+|---|---:|---:|---:|
+| logistique | 0,699 | 0,600 | 0,212 |
+| arbre | 0,710 | 0,631 | 0,207 |
+| forêt | 0,730 | 0,640 | 0,205 |
+
+La forêt reste première sur les trois mesures du test. Cela ne signifie pas qu'elle répond automatiquement à tous les mandats. Une équipe chargée d'une règle inspectable peut maintenir l'arbre si la perte de performance est jugée acceptable et explicitement documentée.
+
+## 4. Comparer validation et test
+
+Construisez un tableau long, puis un graphique:
+
+```{r}
+#| eval: false
+comparaison_validation_test <- bind_rows(
+  tableau_validation |>
+    transmute(
+      modele,
+      mesure,
+      ensemble = "Validation",
+      valeur = moyenne
+    ),
+  resultats_test |>
+    transmute(
+      modele = recode(
+        modele,
+        logistique = "Logistique",
+        arbre = "Arbre",
+        foret = "Forêt"
+      ),
+      mesure = .metric,
+      ensemble = "Test futur",
+      valeur = .estimate
+    )
+)
+
+comparaison_validation_test |>
+  ggplot(aes(ensemble, valeur, color = modele, group = modele)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2.5) +
+  facet_wrap(~ mesure, scales = "free_y") +
+  labs(x = NULL, y = "Valeur", color = "Modèle")
+```
+
+Questions:
+
+1. Le classement des trois modèles change-t-il?
+2. Quelle mesure change le plus entre validation et test?
+3. Les différences sont-elles dans le même sens pour tous les modèles?
+4. Votre recommandation initiale est-elle confirmée selon votre mandat?
+
+La proportion d'événements positifs passe de 44,1 % dans l'entraînement à 39,6 % dans le test. Cette modification aide à comprendre pourquoi les mesures et la calibration peuvent changer. Elle ne suffit pas à expliquer chaque écart.
+
+## 5. Maintenir ou réviser la décision
+
+Choisissez une des deux formulations.
+
+### Si vous maintenez le choix
+
+> Nous maintenons le modèle choisi avant le test. Le test futur [confirme ou nuance] les preuves suivantes... Le compromis reste acceptable pour notre mandat parce que... La prochaine période devra vérifier...
+
+### Si vous révisez le choix
+
+> Le test futur nous conduit à formuler une nouvelle recommandation. Nous conservons la trace du choix initial. Cette nouvelle décision ne peut pas être considérée comme confirmée par le même test. Elle devra être évaluée sur une période future indépendante.
+
+Ne présentez jamais une révision comme si elle avait été décidée avant de voir les résultats.
+
+## 6. Examiner la calibration
+
+La discrimination vérifie surtout le classement. La calibration compare les probabilités prédites aux fréquences observées.
+
+```{r}
+#| eval: false
+calibration_modeles <- predictions_finales |>
+  group_by(modele) |>
+  mutate(groupe = ntile(.pred_non_terminee_7_jours, 10)) |>
+  group_by(modele, groupe) |>
+  summarise(
+    probabilite_moyenne = mean(.pred_non_terminee_7_jours),
+    frequence_observee = mean(verite == "non_terminee_7_jours"),
+    n = n(),
+    .groups = "drop"
+  )
+
+ggplot(
+  calibration_modeles,
+  aes(probabilite_moyenne, frequence_observee, color = modele)
+) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = 2,
+    color = "#52606d"
+  ) +
+  geom_line() +
+  geom_point() +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(
+    x = "Probabilité moyenne prédite",
+    y = "Fréquence observée",
+    color = "Modèle"
+  )
+```
+
+Interprétez la diagonale: un groupe ayant une probabilité moyenne de 0,60 devrait contenir environ 60 % d'événements positifs si la calibration locale est bonne. Dans ce test, plusieurs groupes à probabilité élevée se trouvent sous la diagonale. Les modèles tendent alors à surestimer la fréquence observée pour ces groupes.
+
+Le découpage en dix groupes est un outil descriptif. Il dépend de la taille du test et ne remplace pas une analyse plus complète de calibration.
+
+## 7. Vérifier le score de Brier
+
+Le score de Brier binaire est la moyenne de l'erreur quadratique entre l'indicatrice de l'événement positif et sa probabilité prédite.
+
+```{r}
+#| eval: false
+verification_brier <- predictions_finales |>
+  mutate(
+    indicatrice = as.numeric(verite == "non_terminee_7_jours"),
+    erreur_carree = (
+      indicatrice - .pred_non_terminee_7_jours
+    )^2
+  ) |>
+  group_by(modele) |>
+  summarise(brier_manuel = mean(erreur_carree), .groups = "drop")
+
+verification_brier
+```
+
+Les valeurs manuelles doivent correspondre aux valeurs calculées par `brier_class()`: environ 0,212, 0,207 et 0,205. Cette vérification confirme que la probabilité utilisée correspond au niveau de l'événement.
+
+## 8. Visualiser l'arbre sans le surinterpréter
+
+```{r}
+#| eval: false
+arbre_final <- extract_fit_engine(workflows_ajustes$arbre)
+
+par(mar = c(1, 1, 2, 1), xpd = TRUE)
+plot(arbre_final, uniform = TRUE, margin = 0.08)
+text(arbre_final, use.n = TRUE, cex = 0.58)
+```
+
+Un arbre produit des chemins inspectables. Ses premières coupures peuvent toutefois changer si les données, la pénalité ou la taille minimale changent. Une règle lisible n'est pas automatiquement une règle stable.
+
+Notez deux éléments:
+
+1. une première coupure que vous pouvez expliquer;
+2. une raison de ne pas transformer cette coupure en affirmation causale.
+
+## 9. Examiner l'importance de la forêt
+
+```{r}
+#| eval: false
+importance_foret <- extract_fit_engine(
+  workflows_ajustes$foret
+)$variable.importance |>
+  enframe(name = "variable", value = "importance") |>
+  arrange(desc(importance))
+
+importance_foret
+```
+
+Résultats repères:
+
+| Variable | Importance par permutation |
+|---|---:|
+| activité | 0,075 |
+| arrondissement | 0,056 |
+| provenance | 0,012 |
+| type de lieu | 0,004 |
+| plage horaire | 0,002 |
+| jour de la semaine | 0,002 |
+
+L'importance par permutation mesure la perte de performance lorsque les valeurs d'un prédicteur sont brouillées. Elle indique que le modèle utilise une information. Elle n'indique pas le sens de l'association, un effet causal, la qualité du service ni une priorité d'intervention.
+
+Corrigez cette phrase:
+
+> L'activité cause les retards, puisque son importance est la plus grande.
+
+Une correction acceptable est:
+
+> Dans cette forêt et pour ce protocole, l'activité est le prédicteur dont la permutation réduit le plus la performance. Cette importance prédictive ne permet pas d'établir une cause.
+
+## 10. Préparer la surveillance
+
+Avant un usage réel, les mesures globales devraient être ventilées par période et par groupes pertinents. L'objectif n'est pas de chercher automatiquement une explication causale, mais de détecter une dégradation ou un échec concentré.
+
+Complétez la grille:
+
+| Niveau | Élément à surveiller | Fréquence | Action si changement |
+|---|---|---|---|
+| données | volume, catégories nouvelles, valeurs manquantes | | |
+| cible | fréquence non terminée en sept jours | | |
+| prédictions | distribution des probabilités | | |
+| discrimination | aire ROC et aire précision-rappel | | |
+| calibration | Brier et graphique de calibration | | |
+| sous-groupes | arrondissement, activité, canal | | |
+
+La surveillance doit aussi vérifier que la définition de la cible et le processus 311 n'ont pas changé.
+
+## 11. Écrire une règle de retrait
+
+Une règle utilisable contient quatre éléments:
+
+1. une mesure;
+2. une période d'observation;
+3. un seuil ou un écart déclencheur;
+4. une action explicite.
+
+Exemple pédagogique:
+
+> Si le score de Brier mensuel dépasse 0,24 pendant deux mois consécutifs, suspendre la diffusion des probabilités et réexaminer les données, la cible et la calibration avant toute reprise.
+
+Le seuil 0,24 n'est pas une norme universelle. Votre équipe doit expliquer comment elle le réviserait selon le niveau de référence, les coûts et l'usage prévu.
+
+Rédigez aussi une règle liée aux données, par exemple une hausse importante de catégories nouvelles ou une modification de la définition de statut.
+
+## 12. Rédiger la fiche modèle
+
+Votre fiche finale doit tenir sur une page et contenir sept rubriques.
+
+### 1. Question et population
+
+Définissez l'unité, la population immédiate, la cible et le moment de prédiction.
+
+### 2. Information permise
+
+Listez les six prédicteurs et les variables futures interdites. Indiquez comment les catégories manquantes, rares et nouvelles sont traitées.
+
+### 3. Périodes et validation
+
+Nommez janvier à septembre comme entraînement, les cinq validations mensuelles et octobre à décembre comme test futur ouvert une fois.
+
+### 4. Modèles et mesures
+
+Nommez les trois candidats, l'événement positif, les deux mesures de classement et le Brier.
+
+### 5. Décision et compromis
+
+Conservez le choix initial, indiquez s'il est maintenu ou révisé, et nommez le compromis accepté pour le mandat.
+
+### 6. Limites
+
+Mentionnez au minimum la cible pédagogique, la portée de l'échantillon 2024, la possibilité de dérive, l'absence d'interprétation causale et les vérifications par sous-groupe encore nécessaires.
+
+### 7. Surveillance et retrait
+
+Écrivez la mesure, la fréquence, le seuil et l'action de votre règle de retrait.
+
+## Erreurs fréquentes à éviter
+
+- Effacer la recommandation prise avant le test.
+- Régler un hyperparamètre avec octobre à décembre puis appeler la même période « test ».
+- Confondre aire ROC et calibration.
+- Dire qu'un Brier plus grand est meilleur.
+- Traiter l'importance par permutation comme un effet causal.
+- Présenter la cible de sept jours comme une norme de la Ville.
+- Proposer « surveiller régulièrement » sans mesure, fréquence ni action.
+- Utiliser les probabilités pédagogiques pour une décision réelle.
+
+## Vérification finale
+
+- La décision avant test est encore visible.
+- Le test est ouvert une seule fois.
+- Les trois mesures sont lues dans le bon sens.
+- Validation et test sont comparés sans réécriture du protocole.
+- La calibration est distinguée du classement.
+- L'importance est décrite comme prédictive et non causale.
+- Le choix final correspond au mandat.
+- Les limites des données et de la cible sont présentes.
+- La règle de retrait contient mesure, période, seuil et action.
+- La fiche contient les sept rubriques demandées.

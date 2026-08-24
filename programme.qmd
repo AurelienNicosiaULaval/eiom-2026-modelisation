@@ -49,17 +49,20 @@ Au terme du parcours, chaque personne aura produit:
 
 ## Vendredi 28 août: modèles d'apprentissage automatique
 
-| Temps relatif | Activité | Production |
+| Heure | Activité | Production |
 |---|---|---|
-| 0:00 à 0:15 | Rencontres éclair de modèles | Hypothèses de choix |
-| 0:15 à 0:40 | Temps, dérive et fuite d'information | Schéma entraînement-validation-test |
-| 0:40 à 1:15 | Arbre de décision en direct | Arbre élagué |
-| 1:15 à 1:30 | Expérience de surajustement | Courbe complexité-erreur |
-| 1:30 à 1:45 | Pause | |
-| 1:45 à 2:20 | Forêt aléatoire et validation temporelle | Mesures hors échantillon |
-| 2:20 à 3:05 | Défi modèles: logistique, arbre ou forêt | Classement argumenté |
-| 3:05 à 3:25 | Conseil de décision | Fiche de modèle finale |
-| 3:25 à 3:30 | Clôture | Prochaine action personnelle |
+| 8 h 45 à 9 h 10 | Cible, fuite, dérive et trois candidats | Question prédictive et hypothèses de choix |
+| 9 h 10 à 9 h 30 | Arbre, forêt, surajustement et flexibilité | Carte conceptuelle des compromis |
+| 9 h 30 à 9 h 50 | Test fermé, fenêtres, recette et mesures | Protocole commun |
+| 9 h 50 à 10 h 15 | Mission 1: protéger le futur | Calendrier et règles anti-fuite |
+| 10 h 15 à 10 h 20 | Débrief de la mission 1 | Protocole verrouillé |
+| 10 h 20 à 10 h 30 | Pause | |
+| 10 h 30 à 10 h 40 | Moyennes, stabilité et mandats | Grille de comparaison |
+| 10 h 40 à 11 h 05 | Mission 2: choisir avant le test | Classement signé et compromis |
+| 11 h 05 à 11 h 10 | Débrief de la mission 2 | Recommandations comparées |
+| 11 h 10 à 11 h 30 | Test futur, calibration, importance et surveillance | Diagnostic confirmatoire |
+| 11 h 30 à 11 h 55 | Mission finale: ouvrir le futur et décider | Fiche modèle et règle de retrait |
+| 11 h 55 à 12 h 15 | Restitution et billet de sortie | Décision, limite et condition de retrait |
 
 ## Rythme de chaque bloc
 

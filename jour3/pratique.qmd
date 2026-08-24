@@ -1,175 +1,44 @@
 ---
-title: "Pratique: le défi modèles"
-subtitle: "Un classement temporel, puis un contre-interrogatoire"
+title: "Missions du jour 3"
+subtitle: "Protéger le futur, choisir, décider"
 format:
   html:
     embed-resources: true
 ---
 
-## Consigne
+## Fonctionnement
 
-Votre équipe reçoit les résultats de validation temporelle de trois modèles. Vous devez recommander un modèle avant d'ouvrir le test futur, puis défendre votre décision face à une autre équipe.
+Les missions sont réalisées en équipes de trois ou quatre personnes. Elles apparaissent à trois moments de la présentation et construisent progressivement une fiche de modèle. La décision écrite à la mission 2 doit être prise avant l'ouverture du test futur. Cette contrainte est une partie essentielle de l'exercice.
 
-## Règle du jeu
+Chaque page contient le mandat, les objectifs d'apprentissage, le code de départ, les résultats attendus, les questions d'interprétation, les pièges fréquents et une vérification finale. Le [tutoriel complet](tutoriel.html) offre une explication continue et des résultats pré-rendus.
 
-Le test futur reste fermé pendant le classement. Vous avez accès aux résultats des fenêtres de validation, à la description des modèles et à leur coût d'utilisation.
+<div class="resource-grid">
+<a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Définir la prédiction, protéger le futur et verrouiller le protocole.</span></a>
+<a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Comparer moyenne et stabilité, puis choisir avant le test.</span></a>
+<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Ouvrir le futur, examiner la calibration et rédiger la fiche modèle.</span></a>
+</div>
 
-## Étape 1: construire le tableau de bord
+## Production cumulative
 
-À partir de `tableau_validation`, créez une table large.
+| Mission | Durée | Question dominante | Production |
+|---|---:|---|---|
+| 1 | 25 min | Que peut-on utiliser pour imiter une prédiction future? | protocole temporel et règles anti-fuite |
+| 2 | 25 min | Quel candidat sert le mieux notre mandat avant le test? | classement signé et compromis explicite |
+| finale | 25 min | Le futur confirme-t-il la décision et comment surveiller le modèle? | fiche de modèle et règle de retrait |
 
-```{r}
-#| eval: false
-classement <- tableau_validation |>
-  mutate(
-    modele = recode(
-      wflow_id,
-      pretraitement_logistique = "Logistique",
-      pretraitement_arbre = "Arbre",
-      pretraitement_foret = "Forêt"
-    )
-  ) |>
-  select(modele, .metric, mean, std_err) |>
-  pivot_wider(
-    names_from = .metric,
-    values_from = c(mean, std_err)
-  )
+## Rôles
 
-classement
-```
+Répartissez quatre responsabilités:
 
-## Étape 2: inspecter la stabilité
+1. la personne pilote exécute le code;
+2. la personne interprète traduit chaque valeur en une phrase;
+3. la personne gardienne du futur vérifie les périodes et les fuites;
+4. la personne sceptique cherche une limite ou une conclusion trop forte.
 
-Une moyenne peut masquer un mauvais mois. Construisez une figure par fenêtre.
+Changez de rôle entre les missions. Une personne qui ne contrôle pas le clavier doit toujours pouvoir expliquer le résultat, le protocole et le compromis retenu.
 
-```{r}
-#| eval: false
-resultats_par_fenetre <- collect_metrics(
-  resultats_validation,
-  summarize = FALSE
-) |>
-  mutate(
-    modele = recode(
-      wflow_id,
-      pretraitement_logistique = "Logistique",
-      pretraitement_arbre = "Arbre",
-      pretraitement_foret = "Forêt"
-    )
-  )
+## Règle de travail
 
-resultats_par_fenetre |>
-  filter(.metric == "roc_auc") |>
-  ggplot(aes(id, .estimate, color = modele, group = modele)) +
-  geom_line() +
-  geom_point() +
-  labs(x = "Fenêtre", y = "Aire ROC", color = "Modèle")
-```
+Une réponse complète relie une question, une preuve, une décision et une limite. Un modèle n'est pas choisi seulement parce qu'une valeur est la plus élevée. La mesure doit être lue dans le bon sens, la stabilité doit être examinée et le choix doit correspondre au mandat.
 
-Questions:
-
-1. Quel modèle est le plus stable?
-2. Le modèle gagnant en moyenne gagne-t-il chaque mois?
-3. Une différence faible justifie-t-elle une complexité supplémentaire?
-
-## Étape 3: recevoir un mandat
-
-Choisissez une carte.
-
-### Carte A: communication scientifique
-
-Le comité veut comprendre les associations et publier une méthode transparente. Un petit gain de performance ne justifie pas une forte perte d'interprétabilité.
-
-### Carte B: tri expérimental
-
-Le comité veut tester un outil de suivi, accepte une complexité plus élevée et exige une surveillance temporelle de la calibration.
-
-### Carte C: règle inspectable
-
-Le comité veut une règle courte que les personnes responsables peuvent examiner, même si elle ne maximise pas toutes les mesures.
-
-### Carte D: infrastructure minimale
-
-Le comité dispose de peu de ressources informatiques et veut pouvoir réentraîner et auditer rapidement le modèle.
-
-## Étape 4: pondérer les critères
-
-Attribuez un total de 100 points.
-
-| Critère | Poids de votre équipe |
-|---|---:|
-| Aire ROC | |
-| Aire précision-rappel | |
-| Score de Brier | |
-| Stabilité temporelle | |
-| Interprétabilité | |
-| Coût de calcul | |
-| Facilité de surveillance | |
-
-## Étape 5: recommander avant le test
-
-Votre recommandation doit contenir:
-
-1. le modèle retenu;
-2. le critère principal;
-3. une mesure de contrôle;
-4. la stabilité entre fenêtres;
-5. un compromis accepté;
-6. une condition qui ferait changer le choix.
-
-Écrivez et horodatez votre décision avant de continuer.
-
-## Étape 6: contre-interrogatoire
-
-L'équipe voisine pose cinq questions:
-
-1. Les trois modèles ont-ils utilisé exactement la même information?
-2. Les fenêtres respectent-elles le moment de prédiction?
-3. Le gain justifie-t-il la complexité?
-4. Le modèle est-il calibré, ou seulement discriminant?
-5. Comment détecterez-vous une dérive après l'atelier?
-
-## Étape 7: ouvrir le test futur
-
-Consultez ensuite `resultats_test`.
-
-```{r}
-#| eval: false
-resultats_test
-```
-
-Vous ne pouvez pas changer silencieusement de modèle. Si le résultat futur modifie votre décision, consignez:
-
-1. ce qui a échoué;
-2. la modification proposée;
-3. la nouvelle période qui servira de test indépendant.
-
-## Étape 8: compléter la fiche de modèle
-
-Ajoutez:
-
-- la période d'entraînement;
-- les fenêtres de validation;
-- la période de test;
-- les variables interdites;
-- les mesures principales;
-- le modèle retenu et le compromis;
-- une règle de surveillance mensuelle;
-- une condition de retrait du modèle.
-
-## Restitution finale
-
-Présentez en trois minutes:
-
-1. mandat;
-2. modèle;
-3. preuves temporelles;
-4. compromis;
-5. résultat du test;
-6. limite;
-7. règle de révision.
-
-## Billet de sortie
-
-- Le modèle le plus complexe a ou n'a pas gagné parce que...
-- La fenêtre temporelle a changé ma lecture parce que...
-- La prochaine fois que je compare des modèles, je vais d'abord...
+L'exercice reste pédagogique. Les probabilités ne doivent pas être utilisées pour prioriser de vraies demandes citoyennes. La cible de sept jours n'est pas une norme officielle de service.

@@ -20,26 +20,27 @@ Un modèle plus flexible améliore-t-il réellement la prédiction des demandes 
 4. appliquer le même prétraitement et les mêmes mesures à plusieurs modèles;
 5. comparer performance moyenne et stabilité dans le temps;
 6. interpréter prudemment une importance de variable;
-7. recommander un modèle selon un mandat explicite.
+7. recommander un modèle selon un mandat explicite;
+8. définir une surveillance et une condition de retrait.
 
 ## Matériel
 
 <div class="resource-grid">
-<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Flexibilité, surajustement et validation dans le temps.</span></a>
-<a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel comparatif</span><span class="card-copy">Trois modèles, cinq fenêtres et un test futur.</span></a>
-<a class="resource-card" href="pratique.html"><span class="card-title">Défi modèles</span><span class="card-copy">Classer avant d'ouvrir le test, puis défendre le compromis.</span></a>
+<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">46 diapositives sur flexibilité, surajustement, validation, calibration et surveillance.</span></a>
+<a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Trois modèles, cinq fenêtres, un test futur et une fiche modèle.</span></a>
+<a class="resource-card" href="pratique.html"><span class="card-title">Trois missions</span><span class="card-copy">Protéger le futur, choisir avant le test, puis ouvrir le futur et décider.</span></a>
 </div>
 
 ## Production de la matinée
 
 La fiche de modèle finale doit préciser:
 
-1. le mandat;
-2. les périodes d'entraînement, de validation et de test;
-3. les modèles comparés;
-4. les mesures et leur stabilité;
-5. le compromis retenu;
-6. la limite la plus importante;
+1. la question, l'unité et le moment de prédiction;
+2. les variables permises et les informations futures interdites;
+3. le mandat;
+4. les périodes d'entraînement, de validation et de test;
+5. les modèles, les mesures et leur stabilité;
+6. le compromis retenu et les limites;
 7. une règle de surveillance et une condition de retrait.
 
 ## Principe de comparaison

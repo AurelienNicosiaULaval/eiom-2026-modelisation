@@ -14,6 +14,7 @@ project:
     - jour2/*.qmd
     - jour2/missions/*.qmd
     - jour3/*.qmd
+    - jour3/missions/*.qmd
     - projet-integrateur.qmd
   resources:
     - data/README.md
@@ -66,7 +67,7 @@ website:
             href: jour3/slides.qmd
           - text: "Tutoriel"
             href: jour3/tutoriel.qmd
-          - text: "Défi modèles"
+          - text: "Missions"
             href: jour3/pratique.qmd
       - text: "Projet final"
         href: projet-integrateur.qmd

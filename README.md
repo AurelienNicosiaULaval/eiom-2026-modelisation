@@ -8,7 +8,7 @@ Site public: https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/
 
 - Jour 1: régression linéaire multiple et diagnostics
 - Jour 2: régression logistique, seuils et calibration avec les données Titanic
-- Jour 3: arbres, forêts aléatoires et validation temporelle
+- Jour 3: arbres, forêts aléatoires, validation temporelle et décision surveillable avec les demandes 311 de Montréal
 - Diagnostic de départ, tutoriels, pratiques et projet intégrateur
 
 ## Rendu local
