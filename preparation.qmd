@@ -10,9 +10,37 @@ format:
 
 Installez une version récente de R, RStudio Desktop et Quarto. Le matériel a été validé avec R 4.5.0 et Quarto 1.9.38.
 
+## Obtenir le matériel
+
+La solution recommandée consiste à télécharger tout le projet avant la première matinée:
+
+1. téléchargez l'[archive ZIP du projet](https://github.com/AurelienNicosiaULaval/eiom-2026-modelisation/archive/refs/heads/main.zip);
+2. décompressez l'archive dans un dossier où vous avez le droit d'écrire;
+3. ouvrez le dossier `eiom-2026-modelisation-main` dans RStudio;
+4. vérifiez avec `getwd()` que le dossier courant contient `_quarto.yml`, `scripts` et `data`.
+
+Si vous possédez déjà le projet, mais pas le fichier du jour 3, exécutez ce bloc depuis sa racine:
+
+```{r}
+#| eval: false
+dir.create("data", showWarnings = FALSE)
+
+download.file(
+  paste0(
+    "https://aureliennicosiaulaval.github.io/",
+    "eiom-2026-modelisation/data/",
+    "requetes_311_montreal_2024_eiom.csv"
+  ),
+  "data/requetes_311_montreal_2024_eiom.csv",
+  mode = "wb"
+)
+```
+
+Le fichier téléchargé doit contenir 18 000 lignes et 15 colonnes. Il s'agit d'un extrait pédagogique préparé à partir des [données ouvertes 311 de Montréal](https://www.donneesquebec.ca/recherche/dataset/vmtl-requete-311).
+
 ## Installer les paquets
 
-Exécutez le script suivant depuis la racine du projet.
+Exécutez ensuite le script suivant depuis la racine du projet.
 
 ```{r}
 #| eval: false
@@ -33,6 +61,15 @@ library(rpart)
 
 # Load the Day 1 data set
 ames <- make_ames()
+
+stopifnot(identical(
+  levels(ames$Overall_Qual),
+  c(
+    "Very_Poor", "Poor", "Fair", "Below_Average", "Average",
+    "Above_Average", "Good", "Very_Good", "Excellent",
+    "Very_Excellent"
+  )
+))
 
 # Check the first observations and dimensions
 glimpse(ames)

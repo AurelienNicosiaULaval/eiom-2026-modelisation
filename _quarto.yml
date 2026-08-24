@@ -9,7 +9,6 @@ project:
     - preparation.qmd
     - ressources.qmd
     - jour1/*.qmd
-    - "!jour1/tutoriel 2.qmd"
     - jour1/missions/*.qmd
     - jour2/*.qmd
     - jour2/missions/*.qmd
@@ -57,7 +56,7 @@ website:
             href: jour2/slides.qmd
           - text: "Tutoriel"
             href: jour2/tutoriel.qmd
-          - text: "Pratique"
+          - text: "Missions"
             href: jour2/pratique.qmd
       - text: "Jour 3"
         menu:

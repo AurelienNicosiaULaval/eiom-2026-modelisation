@@ -118,6 +118,17 @@ modele_foret <- rand_forest(
 ) |>
   set_engine(
     "ranger",
+    num.threads = 2
+  ) |>
+  set_mode("classification")
+
+modele_foret_final <- rand_forest(
+  mtry = 4,
+  min_n = 30,
+  trees = 200
+) |>
+  set_engine(
+    "ranger",
     importance = "permutation",
     num.threads = 2
   ) |>
@@ -189,8 +200,14 @@ stabilite_auc <- resultats_par_fenetre |>
     .groups = "drop"
   )
 
+modeles_finaux <- list(
+  logistique = modele_logistique,
+  arbre = modele_arbre,
+  foret = modele_foret_final
+)
+
 workflows_ajustes <- map(
-  modeles,
+  modeles_finaux,
   ~ workflow() |>
     add_recipe(recette_ml) |>
     add_model(.x) |>
@@ -316,7 +333,7 @@ Le fichier pédagogique contient 18 000 demandes créées en 2024.
 | Usage pédagogique | comparer des probabilités futures |
 
 ::: {.notes}
-4 minutes. Préciser que sept jours est une définition pédagogique, pas une norme officielle de service.
+2 minutes. Préciser que sept jours est une définition pédagogique, pas une norme officielle de service.
 
 [Source]
 - https://www.donneesquebec.ca/recherche/dataset/vmtl-requete-311
@@ -331,7 +348,7 @@ Cette information définit la réponse, mais elle n'est pas un prédicteur dispo
 <div class="takeaway">Construire la cible avec le futur est permis. Prédire avec ce futur serait une fuite.</div>
 
 ::: {.notes}
-4 minutes. Demander si `dernier_statut`, `date_dernier_statut` ou `delai_dernier_statut_jours` peuvent être utilisés comme prédicteurs. Réponse: non.
+3 minutes. Demander si `dernier_statut`, `date_dernier_statut` ou `delai_dernier_statut_jours` peuvent être utilisés comme prédicteurs. Réponse: non.
 :::
 
 ## Le futur ne ressemble pas exactement au passé
@@ -348,10 +365,10 @@ resume_donnees |>
   )
 ```
 
-La part non terminée passe de 44,1 % à 39,6 %.
+La part non terminée passe de `r scales::percent(resume_donnees |> filter(ensemble == "Entraînement", verite == "non_terminee_7_jours") |> pull(proportion), accuracy = 0.1)` à `r scales::percent(resume_donnees |> filter(ensemble == "Test futur", verite == "non_terminee_7_jours") |> pull(proportion), accuracy = 0.1)`.
 
 ::: {.notes}
-4 minutes. Demander ce que ce changement peut modifier: une référence naïve, la calibration et parfois les mesures de classement.
+2 minutes. Demander ce que ce changement peut modifier: une référence naïve, la calibration et parfois les mesures de classement.
 :::
 
 ## Six prédicteurs disponibles à la création
@@ -364,7 +381,7 @@ La part non terminée passe de 44,1 % à 39,6 %.
 Nous n'utilisons ni le statut futur, ni sa date, ni le délai final.
 
 ::: {.notes}
-3 minutes. Faire classer oralement les variables permises et interdites.
+2 minutes. Faire classer oralement les variables permises et interdites.
 :::
 
 ## Trois candidats, trois compromis
@@ -376,7 +393,7 @@ Nous n'utilisons ni le statut futur, ni sa date, ni le délai final.
 | Forêt | flexibilité et agrégation | interprétation indirecte |
 
 ::: {.notes}
-3 minutes. Rappeler que la régression logistique sert ici de référence sérieuse, pas de modèle faible.
+2 minutes. Rappeler que la régression logistique sert ici de référence sérieuse, pas de modèle faible.
 :::
 
 ## Choisir un modèle est une décision
@@ -390,7 +407,7 @@ La performance ne suffit pas. Il faut aussi considérer:
 5. la calibration des probabilités.
 
 ::: {.notes}
-3 minutes. Demander quel critère domine si une règle doit être expliquée ligne par ligne.
+2 minutes. Demander quel critère domine si une règle doit être expliquée ligne par ligne.
 :::
 
 ## La logistique impose une structure globale
@@ -402,7 +419,7 @@ Elle peut être très performante si la structure choisie est suffisante.
 <div class="takeaway">Simple ne signifie ni naïf ni automatiquement stable dans le futur.</div>
 
 ::: {.notes}
-3 minutes. Faire le lien avec la journée 2. Aucun calcul de coefficient n'est nécessaire aujourd'hui.
+2 minutes. Faire le lien avec la journée 2. Aucun calcul de coefficient n'est nécessaire aujourd'hui.
 :::
 
 ## L'arbre pose des questions successives
@@ -420,7 +437,7 @@ flowchart TD
 ```
 
 ::: {.notes}
-4 minutes. Faire lire le chemin d'une demande fictive. Expliquer qu'un terminal donne une fréquence estimée, pas une certitude.
+3 minutes. Faire lire le chemin d'une demande fictive. Expliquer qu'un terminal donne une fréquence estimée, pas une certitude.
 :::
 
 ## Une coupure recherche de l'homogénéité
@@ -432,7 +449,7 @@ Le processus recommence dans chaque groupe obtenu.
 Il s'arrête lorsque les règles de complexité l'imposent.
 
 ::: {.notes}
-3 minutes. Dire que l'impureté quantifie le mélange des classes, sans dériver le critère de Gini.
+2 minutes. Dire que l'impureté quantifie le mélange des classes, sans dériver le critère de Gini.
 
 [Source]
 - https://parsnip.tidymodels.org/reference/decision_tree.html
@@ -449,7 +466,7 @@ $$
 Le seuil de classement est une décision supplémentaire.
 
 ::: {.notes}
-3 minutes. Demander la classe prédite à un seuil de 0,50 puis à 0,70. Réponses: non terminée, puis terminée.
+2 minutes. Demander la classe prédite à un seuil de 0,50 puis à 0,70. Réponses: non terminée, puis terminée.
 :::
 
 ## Un arbre profond peut mémoriser
@@ -463,7 +480,7 @@ Le seuil de classement est une décision supplémentaire.
 <div class="takeaway">L'erreur d'entraînement récompense souvent une complexité qui échoue dans le futur.</div>
 
 ::: {.notes}
-4 minutes. Faire prédire quelle erreur diminue presque toujours avec la profondeur. Réponse: l'erreur d'entraînement.
+2 minutes. Faire prédire quelle erreur diminue presque toujours avec la profondeur. Réponse: l'erreur d'entraînement.
 :::
 
 ## Trois freins à la complexité
@@ -475,7 +492,7 @@ Le seuil de classement est une décision supplémentaire.
 | pénalité de complexité | le gain justifie-t-il une branche? |
 
 ::: {.notes}
-3 minutes. Montrer les valeurs fixées: profondeur 10, minimum 30 et pénalité 0,001. Elles ne sont pas optimisées sur le test.
+2 minutes. Montrer les valeurs fixées: profondeur 10, minimum 30 et pénalité 0,001. Elles ne sont pas optimisées sur le test.
 :::
 
 ## La forêt perturbe et agrège
@@ -488,7 +505,7 @@ Pour chaque arbre:
 4. agréger les probabilités de 200 arbres.
 
 ::: {.notes}
-4 minutes. Demander pourquoi des arbres identiques n'apporteraient rien. La diversité permet à l'agrégation de réduire une partie de la variance [@breiman2001random].
+3 minutes. Demander pourquoi des arbres identiques n'apporteraient rien. La diversité permet à l'agrégation de réduire une partie de la variance [@breiman2001random].
 :::
 
 ## Trois réglages de la forêt
@@ -502,7 +519,7 @@ Pour chaque arbre:
 Plus d'arbres stabilisent l'agrégation, mais ne corrigent pas un protocole biaisé.
 
 ::: {.notes}
-3 minutes. Distinguer la taille de l'ensemble et la complexité de chaque arbre.
+2 minutes. Distinguer la taille de l'ensemble et la complexité de chaque arbre.
 
 [Source]
 - https://parsnip.tidymodels.org/reference/rand_forest.html
@@ -517,7 +534,7 @@ Une grande perte signifie que le modèle utilisait cette information.
 Elle ne donne ni le sens de l'association, ni un effet causal, ni une priorité de politique publique.
 
 ::: {.notes}
-4 minutes. Faire corriger la phrase: « l'activité est la cause principale du délai ».
+2 minutes. Faire corriger la phrase: « l'activité est la cause principale du délai ».
 :::
 
 ## Flexibilité et variance forment un compromis
@@ -534,7 +551,7 @@ flowchart LR
 La place sur cet axe ne détermine pas le gagnant. Le futur tranche.
 
 ::: {.notes}
-3 minutes. Préciser qu'une forêt peut être plus stable qu'un arbre tout en étant plus flexible, grâce à l'agrégation.
+2 minutes. Préciser qu'une forêt peut être plus stable qu'un arbre tout en étant plus flexible, grâce à l'agrégation.
 :::
 
 ## Le test futur reste fermé
@@ -549,7 +566,7 @@ flowchart LR
 ```
 
 ::: {.notes}
-4 minutes. Demander quelles décisions sont prises avant le test: variables, prétraitement, candidats, paramètres, mesures et mandat.
+3 minutes. Demander quelles décisions sont prises avant le test: variables, prétraitement, candidats, paramètres, mesures et mandat.
 :::
 
 ## Pourquoi répéter la question « mois suivant »?
@@ -564,7 +581,7 @@ Plusieurs fenêtres montrent:
 4. la sensibilité du classement des modèles.
 
 ::: {.notes}
-3 minutes. Relier moyenne et stabilité: deux questions complémentaires, pas deux versions de la même mesure.
+2 minutes. Relier moyenne et stabilité: deux questions complémentaires, pas deux versions de la même mesure.
 :::
 
 ## Cinq fenêtres temporelles
@@ -577,7 +594,7 @@ resume_plis
 Chaque modèle apprend sur quatre mois, puis prédit le mois suivant.
 
 ::: {.notes}
-4 minutes. Faire vérifier que chaque validation est strictement postérieure à son apprentissage.
+3 minutes. Faire vérifier que chaque validation est strictement postérieure à son apprentissage.
 
 [Source]
 - https://rsample.tidymodels.org/reference/slide-resampling.html
@@ -594,7 +611,7 @@ Chaque modèle apprend sur quatre mois, puis prédit le mois suivant.
 Les deux protocoles peuvent être valides, mais ils ne répondent pas à la même question.
 
 ::: {.notes}
-4 minutes. Demander quel protocole imite l'usage annoncé. Réponse: les fenêtres temporelles.
+2 minutes. Demander quel protocole imite l'usage annoncé. Réponse: les fenêtres temporelles.
 :::
 
 ## Une recette commune évite un avantage caché
@@ -608,7 +625,7 @@ Les trois candidats reçoivent:
 5. les mêmes mesures.
 
 ::: {.notes}
-3 minutes. Expliquer que changer les données en même temps que l'algorithme empêche d'attribuer le gain au modèle.
+2 minutes. Expliquer que changer les données en même temps que l'algorithme empêche d'attribuer le gain au modèle.
 :::
 
 ## Le prétraitement doit apprendre dans chaque fenêtre
@@ -623,7 +640,7 @@ Les trois candidats reçoivent:
 <div class="takeaway">La recette est réestimée sur chaque sous-ensemble d'apprentissage.</div>
 
 ::: {.notes}
-4 minutes. Demander pourquoi on ne regroupe pas les catégories avec tout le fichier avant les plis. Réponse: cela utiliserait de l'information des validations.
+3 minutes. Demander pourquoi on ne regroupe pas les catégories avec tout le fichier avant les plis. Réponse: cela utiliserait de l'information des validations.
 
 [Sources]
 - https://recipes.tidymodels.org/reference/step_novel.html
@@ -640,7 +657,7 @@ Les trois candidats reçoivent:
 | Brier | les probabilités sont-elles proches des résultats? | faible |
 
 ::: {.notes}
-4 minutes. Faire nommer l'événement positif: non terminée dans les sept jours.
+3 minutes. Faire nommer l'événement positif: non terminée dans les sept jours.
 :::
 
 ## Le score de Brier regarde la probabilité
@@ -656,7 +673,7 @@ où $y = 1$ pour « non terminée » et $\widehat p$ est la probabilité corresp
 Une prédiction confiante et fausse est fortement pénalisée.
 
 ::: {.notes}
-4 minutes. Comparer mentalement une erreur à 0,55 et une erreur à 0,95 lorsque y vaut 0. Le score moyen est minimisé à 0.
+2 minutes. Comparer mentalement une erreur à 0,55 et une erreur à 0,95 lorsque y vaut 0. Le score moyen est minimisé à 0.
 
 [Source]
 - https://yardstick.tidymodels.org/reference/brier_class.html
@@ -688,7 +705,17 @@ En 25 minutes, produisez:
 | information | disponible à la création |
 
 ::: {.notes}
-7 minutes. Faire corriger une équipe par une autre. Ne pas encore montrer les résultats de validation.
+5 minutes. Faire corriger une équipe par une autre. Ne pas encore montrer les résultats de validation.
+:::
+
+## Pause {.section-slide}
+
+10 h 20 à 10 h 30
+
+Reprise avec les résultats de validation, sans ouvrir le test futur.
+
+::: {.notes}
+10 minutes. Laisser cette diapositive projetée. À 10 h 28, annoncer la reprise dans deux minutes et préparer les quatre cartes de mandat.
 :::
 
 ## Résultats moyens avant le test
@@ -703,7 +730,7 @@ tableau_validation |>
 La forêt est meilleure en moyenne sur les trois mesures, mais les écarts sont modestes.
 
 ::: {.notes}
-5 minutes. Faire lire le sens de chaque colonne. Refuser « 72,6 % des demandes sont bien classées » pour l'aire ROC.
+3 minutes. Faire lire le sens de chaque colonne. Refuser « 72,6 % des demandes sont bien classées » pour l'aire ROC.
 :::
 
 ## La moyenne ne suffit pas
@@ -721,7 +748,7 @@ resultats_par_fenetre |>
 ```
 
 ::: {.notes}
-4 minutes. Faire identifier le candidat le plus variable. Réponse: la forêt, avec un écart-type d'environ 0,016 contre 0,007 à 0,008.
+2 minutes. Faire identifier le candidat le plus variable. Réponse: la forêt, avec un écart-type d'environ 0,016 contre 0,007 à 0,008.
 :::
 
 ## La stabilité change la lecture
@@ -731,12 +758,12 @@ resultats_par_fenetre |>
 stabilite_auc
 ```
 
-La forêt varie de 0,704 à 0,748. L'arbre varie de 0,712 à 0,731.
+La forêt varie de `r round(stabilite_auc |> filter(modele == "Forêt") |> pull(minimum), 3)` à `r round(stabilite_auc |> filter(modele == "Forêt") |> pull(maximum), 3)`. L'arbre varie de `r round(stabilite_auc |> filter(modele == "Arbre") |> pull(minimum), 3)` à `r round(stabilite_auc |> filter(modele == "Arbre") |> pull(maximum), 3)`.
 
 <div class="takeaway">Le meilleur score moyen n'est pas la meilleure réponse à tous les mandats.</div>
 
 ::: {.notes}
-4 minutes. Demander quel modèle une organisation très aversive à l'instabilité pourrait retenir.
+3 minutes. Demander quel modèle une organisation très aversive à l'instabilité pourrait retenir.
 :::
 
 ## Quatre mandats, quatre classements possibles
@@ -749,7 +776,7 @@ La forêt varie de 0,704 à 0,748. L'arbre varie de 0,712 à 0,731.
 Le mandat doit être attribué avant l'ouverture du test.
 
 ::: {.notes}
-3 minutes. Distribuer un mandat par équipe. Une décision acceptable doit citer au moins deux mesures, la stabilité et un coût.
+2 minutes. Distribuer un mandat par équipe. Une décision acceptable doit citer au moins deux mesures, la stabilité et un coût.
 :::
 
 ## Mission 2: choisir avant le test
@@ -779,7 +806,7 @@ Une recommandation défendable contient:
 6. une condition de révision.
 
 ::: {.notes}
-8 minutes. Faire entendre deux recommandations différentes. Montrer qu'elles peuvent être cohérentes si les mandats diffèrent.
+5 minutes. Faire entendre deux recommandations différentes. Montrer qu'elles peuvent être cohérentes si les mandats diffèrent.
 :::
 
 ## Le test futur n'est ouvert qu'une fois
@@ -806,7 +833,7 @@ resultats_test |>
 ```
 
 ::: {.notes}
-5 minutes. Comparer les résultats aux décisions écrites. La forêt reste première sur les trois mesures du test.
+3 minutes. Comparer les résultats aux décisions écrites. La forêt reste première sur les trois mesures du test.
 :::
 
 ## Validation et test racontent-ils la même histoire?
@@ -840,7 +867,7 @@ comparaison_validation_test |>
 ```
 
 ::: {.notes}
-4 minutes. Faire décrire les changements avant d'expliquer: baisse des aires pour logistique et arbre, forêt similaire, Brier plus faible dans le test en partie parce que la fréquence change.
+3 minutes. Faire décrire les changements avant d'expliquer: baisse des aires pour logistique et arbre, forêt similaire, Brier plus faible dans le test en partie parce que la fréquence change.
 :::
 
 ## Si le test déçoit
@@ -855,7 +882,7 @@ Vous pouvez:
 Vous ne pouvez pas recycler silencieusement le test comme validation et confirmation.
 
 ::: {.notes}
-3 minutes. Demander ce qui arriverait si on réglait maintenant `mtry` sur octobre à décembre. Réponse: ce test ne pourrait plus confirmer le modèle réglé.
+2 minutes. Demander ce qui arriverait si on réglait maintenant `mtry` sur octobre à décembre. Réponse: ce test ne pourrait plus confirmer le modèle réglé.
 :::
 
 ## La calibration vérifie les probabilités
@@ -880,7 +907,7 @@ ggplot(
 ```
 
 ::: {.notes}
-4 minutes. Faire pointer la diagonale idéale. Dire que la forêt tend à surestimer les groupes de probabilité élevée dans ce test.
+3 minutes. Faire pointer la diagonale idéale. Dire que la forêt tend à surestimer les groupes de probabilité élevée dans ce test.
 :::
 
 ## L'importance n'est pas une cause
@@ -896,7 +923,7 @@ importance_foret |>
 ```
 
 ::: {.notes}
-4 minutes. Faire distinguer trois affirmations: utilisée par le modèle, associée à la cible, cause du délai. Seule la première est directement soutenue ici.
+3 minutes. Faire distinguer trois affirmations: utilisée par le modèle, associée à la cible, cause du délai. Seule la première est directement soutenue ici.
 :::
 
 ## Une performance globale peut cacher des écarts
@@ -927,7 +954,7 @@ Avant un usage réel, il faudrait vérifier les résultats par:
 Une condition de retrait doit être écrite avant l'incident.
 
 ::: {.notes}
-4 minutes. Demander un exemple de seuil de retrait et exiger une durée, une mesure et une action.
+3 minutes. Demander un exemple de seuil de retrait et exiger une durée, une mesure et une action.
 :::
 
 ## Mission 3: ouvrir le futur et décider
@@ -956,7 +983,7 @@ En 25 minutes:
 7. surveillance et condition de retrait.
 
 ::: {.notes}
-5 minutes. Faire lire une fiche par une équipe et demander au groupe quelle rubrique manque ou reste imprécise.
+7 minutes. Faire lire une fiche par une équipe et demander au groupe quelle rubrique manque ou reste imprécise.
 :::
 
 ## Sept questions avant de conclure
@@ -970,7 +997,7 @@ En 25 minutes:
 7. Quand cesserons-nous d'utiliser le modèle?
 
 ::: {.notes}
-4 minutes. Faire répondre une équipe à chacune des questions avec un élément de sa fiche.
+7 minutes. Faire répondre une équipe à chacune des questions avec un élément de sa fiche.
 :::
 
 ## Quel résultat vous ferait retirer un modèle déjà utilisé?
@@ -983,5 +1010,5 @@ En 25 minutes:
 4. une action.
 
 ::: {.notes}
-3 minutes. Billet de sortie. Exemple: « Si le Brier mensuel dépasse 0,24 pendant deux mois consécutifs, suspendre les scores et réexaminer les données et la calibration. » Préciser que 0,24 est un seuil pédagogique à justifier, pas une norme universelle.
+6 minutes. Billet de sortie. Exemple: « Si le Brier mensuel dépasse 0,24 pendant deux mois consécutifs, suspendre les scores et réexaminer les données et la calibration. » Préciser que 0,24 est un seuil pédagogique à justifier, pas une norme universelle.
 :::

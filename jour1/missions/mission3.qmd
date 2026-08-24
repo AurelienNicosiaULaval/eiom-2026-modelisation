@@ -39,7 +39,20 @@ library(AmesHousing)
 library(broom)
 library(patchwork)
 
-ames <- make_ames() |>
+ames_complet <- make_ames()
+
+niveaux_qualite_attendus <- c(
+  "Very_Poor", "Poor", "Fair", "Below_Average", "Average",
+  "Above_Average", "Good", "Very_Good", "Excellent",
+  "Very_Excellent"
+)
+
+stopifnot(identical(
+  levels(ames_complet$Overall_Qual),
+  niveaux_qualite_attendus
+))
+
+ames <- ames_complet |>
   transmute(
     sale_price = Sale_Price,
     gr_liv_area = Gr_Liv_Area,

@@ -93,11 +93,18 @@ Ne cherchez pas à interpréter toutes les décimales. Commencez par le signe, l
 
 ```{r}
 #| eval: false
-table_rapports_cotes <- tidy(
-  modele_logistique,
-  exponentiate = TRUE,
-  conf.int = TRUE
-)
+table_rapports_cotes <- tidy(modele_logistique) |>
+  mutate(
+    estimation_log = estimate,
+    erreur_type_log = std.error,
+    conf.low = exp(estimate - qnorm(0.975) * std.error),
+    conf.high = exp(estimate + qnorm(0.975) * std.error),
+    estimate = exp(estimate)
+  ) |>
+  select(
+    term, estimation_log, erreur_type_log,
+    estimate, conf.low, conf.high, p.value
+  )
 
 table_rapports_cotes
 ```
@@ -109,6 +116,8 @@ Pour un rapport de cotes:
 - une valeur égale à 1 correspond à l'absence de différence sur cette échelle.
 
 L'intervalle de confiance aide à voir l'incertitude. S'il contient 1, les données restent compatibles avec l'absence d'association conditionnelle sur l'échelle des cotes, sous les hypothèses du modèle. Un intervalle étroit ne garantit toutefois ni importance pratique ni bonne prédiction.
+
+Les bornes sont des intervalles de Wald: elles sont calculées sur l'échelle des log-cotes, puis exponentiées. `erreur_type_log` demeure sur l'échelle logit. Ne tentez pas de reconstruire un intervalle autour du rapport de cotes en lui ajoutant directement cette erreur type.
 
 ## 4. Interpréter deux termes
 
@@ -129,6 +138,10 @@ or_age_10
 > À sexe, classe et tarif identiques, dix années supplémentaires sont associées à des cotes de survie enregistrée multipliées par ...
 
 Ne transformez pas directement ces nombres en points de pourcentage. La différence de probabilité dépend du profil de départ.
+
+::: {.callout-warning}
+Le tarif ne doit pas être présenté comme une mesure certaine de richesse personnelle. Dans ce fichier, une même valeur est souvent répétée pour plusieurs personnes partageant un numéro de billet. De plus, classe et tarif sont liés. Une comparaison « à tarif identique » doit donc être comprise comme une comparaison conditionnelle dans la zone réellement couverte par les données, pas comme un effet causal de la classe.
+:::
 
 Utilisez cette grille pour vérifier une interprétation:
 

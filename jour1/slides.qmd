@@ -32,7 +32,20 @@ library(patchwork)
 
 theme_set(theme_minimal(base_size = 18))
 
-ames <- make_ames() |>
+ames_complet <- make_ames()
+
+niveaux_qualite_attendus <- c(
+  "Very_Poor", "Poor", "Fair", "Below_Average", "Average",
+  "Above_Average", "Good", "Very_Good", "Excellent",
+  "Very_Excellent"
+)
+
+stopifnot(identical(
+  levels(ames_complet$Overall_Qual),
+  niveaux_qualite_attendus
+))
+
+ames <- ames_complet |>
   transmute(
     sale_price = Sale_Price,
     gr_liv_area = Gr_Liv_Area,
@@ -514,10 +527,10 @@ predict(modele_prix, propriete_type, interval = "prediction")
 
 Repères:
 
-1. environ 5 700 dollars pour 100 pieds carrés supplémentaires;
-2. environ 24 000 dollars pour un point de qualité;
-3. VIF entre 1,6 et 2,4;
-4. prédiction centrale près de 193 000 dollars;
+1. environ `r dollar(100 * coef(modele_prix)[["gr_liv_area"]], accuracy = 100)` pour 100 pieds carrés supplémentaires;
+2. environ `r dollar(coef(modele_prix)[["overall_qual"]], accuracy = 100)` pour un point de qualité;
+3. VIF entre `r round(min(check_collinearity(modele_prix)$VIF), 1)` et `r round(max(check_collinearity(modele_prix)$VIF), 1)`;
+4. prédiction centrale près de `r dollar(predict(modele_prix, propriete_type)[[1]], accuracy = 1000)`;
 5. intervalle individuel beaucoup plus large que l'intervalle moyen.
 
 <div class="takeaway">Une prédiction sans intervalle donne une précision que le modèle ne possède pas.</div>
@@ -613,7 +626,7 @@ diagnostic_prix |>
   knitr::kable()
 ```
 
-La vente 1499 est inhabituelle. Elle n'est pas automatiquement erronée.
+La vente `r which.max(cooks.distance(modele_prix))` est inhabituelle. Elle n'est pas automatiquement erronée.
 
 ::: {.notes}
 3 minutes. Demander les quatre actions avant suppression: vérifier la source, comprendre le contexte, comparer avec et sans, documenter la décision.
@@ -632,7 +645,8 @@ modele_sans_max <- lm(
 
 bind_rows(
   tidy(modele_prix) |> mutate(Analyse = "Toutes"),
-  tidy(modele_sans_max) |> mutate(Analyse = "Sans la vente 1499")
+  tidy(modele_sans_max) |>
+    mutate(Analyse = paste("Sans la vente", numero_max))
 ) |>
   filter(term != "(Intercept)") |>
   transmute(Analyse, Variable = term, Coefficient = round(estimate, 1)) |>

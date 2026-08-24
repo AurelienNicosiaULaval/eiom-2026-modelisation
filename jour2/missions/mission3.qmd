@@ -8,11 +8,11 @@ format:
 
 ## Votre mandat
 
-Votre équipe doit ouvrir le jeu test, évaluer les probabilités produites par le modèle et choisir un seuil adapté à un mandat analytique. Vous terminerez par une fiche modèle de six phrases.
+Votre équipe doit ouvrir le jeu test, évaluer les probabilités produites par le modèle et choisir un seuil adapté à un mandat analytique. La fiche modèle de six phrases sera rédigée collectivement dans le bloc de restitution, après la formalisation de ROC, de la calibration et du Brier.
 
 Durée: 25 minutes.
 
-Production: une matrice de confusion, une comparaison de seuils, un diagnostic de calibration, une comparaison du score de Brier et la fiche modèle.
+Production obligatoire: une matrice de confusion, une comparaison de seuils, une aire ROC, un diagnostic de calibration, un seuil justifié et une limite. Le calcul comparatif du Brier est un prolongement facultatif.
 
 ## Ce que vous devez apprendre
 
@@ -22,8 +22,8 @@ Production: une matrice de confusion, une comparaison de seuils, un diagnostic d
 2. identifier vrais positifs, faux positifs, vrais négatifs et faux négatifs;
 3. expliquer le compromis entre sensibilité et spécificité;
 4. interpréter une aire ROC sans la confondre avec la calibration;
-5. interpréter un score de Brier par comparaison avec une règle de référence;
-6. choisir un seuil à partir d'un mandat, et non par automatisme.
+5. choisir un seuil à partir d'un mandat, et non par automatisme;
+6. préparer les éléments nécessaires à une fiche modèle concise.
 
 ## Trois familles de questions
 
@@ -36,6 +36,10 @@ Avant de calculer, classez chaque résultat:
 | calibration | les probabilités correspondent-elles aux fréquences? | graphique par groupes |
 
 Un modèle peut bien classer et mal calibrer. Il peut aussi être bien calibré en moyenne tout en séparant faiblement les deux catégories.
+
+::: {.callout-note}
+Vous allez rencontrer la courbe ROC et le graphique de calibration avant leur formalisation collective. Les explications et le code ci-dessous suffisent pour cette découverte guidée. Après la mission, la présentation reprendra ces outils, puis introduira le Brier avant la rédaction de la fiche modèle.
+:::
 
 ## 1. Produire les probabilités de test
 
@@ -191,7 +195,7 @@ Avec seulement 179 lignes de test, cette courbe groupée est exploratoire. Décr
 
 Si les points sont au-dessus de la diagonale, la fréquence observée dépasse la probabilité moyenne et le modèle sous-estime le risque dans ce groupe. S'ils sont sous la diagonale, il le surestime. Vérifiez toujours les axes avant d'utiliser ces mots.
 
-## 6. Comparer l'erreur des probabilités
+## Prolongement facultatif: comparer l'erreur des probabilités
 
 Le score de Brier est l'erreur quadratique moyenne des probabilités. Un score plus petit indique une erreur probabiliste plus faible, mais il n'existe pas de seuil universel permettant de déclarer un modèle bon. Il faut le comparer à une règle simple calculée sur les mêmes observations.
 
@@ -222,7 +226,9 @@ Questions:
 
 Le score de Brier résume l'erreur des probabilités. Le graphique de calibration montre où certaines probabilités semblent trop élevées ou trop faibles. Les deux diagnostics se complètent.
 
-## 7. Rédiger la fiche modèle
+## Après la mission: rédiger la fiche modèle
+
+Cette rédaction est prévue dans le bloc collectif de 12 h 08 à 12 h 15. Conservez dès maintenant votre seuil, son mandat, l'erreur davantage acceptée et votre diagnostic de calibration.
 
 Écrivez exactement six phrases:
 
@@ -241,7 +247,7 @@ La fiche doit pouvoir être comprise sans la sortie R. Arrondissez les mesures �
 2. Choisir 0,50 uniquement parce que c'est la valeur par défaut.
 3. Confondre sensibilité et précision.
 4. Décrire cinq groupes de calibration comme une preuve définitive.
-5. Interpréter le score de Brier sans le comparer à une référence.
+5. Si vous faites le prolongement, interpréter le score de Brier sans le comparer à une référence.
 6. Oublier que les âges manquants ont été exclus avant le partage.
 7. Transformer le seuil en règle historique de sauvetage.
 
@@ -252,6 +258,6 @@ La fiche doit pouvoir être comprise sans la sortie R. Arrondissez les mesures �
 - La sensibilité et la précision ne sont pas confondues.
 - Le seuil est relié à un mandat.
 - L'aire ROC et la calibration répondent à deux questions différentes.
-- Le score de Brier du modèle est comparé à la règle constante.
+- Si le prolongement est réalisé, le score de Brier du modèle est comparé à la règle constante.
 - La petite taille du test est mentionnée.
-- La fiche ne transforme pas l'exercice en règle réelle de sauvetage.
+- Les éléments destinés à la fiche ne transforment pas l'exercice en règle réelle de sauvetage.

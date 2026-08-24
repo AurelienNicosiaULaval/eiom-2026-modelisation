@@ -26,7 +26,7 @@ Un modèle plus flexible améliore-t-il réellement la prédiction des demandes 
 ## Matériel
 
 <div class="resource-grid">
-<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">46 diapositives sur flexibilité, surajustement, validation, calibration et surveillance.</span></a>
+<a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">48 écrans, page titre et pause comprises, sur flexibilité, surajustement, validation, calibration et surveillance.</span></a>
 <a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Trois modèles, cinq fenêtres, un test futur et une fiche modèle.</span></a>
 <a class="resource-card" href="pratique.html"><span class="card-title">Trois missions</span><span class="card-copy">Protéger le futur, choisir avant le test, puis ouvrir le futur et décider.</span></a>
 </div>

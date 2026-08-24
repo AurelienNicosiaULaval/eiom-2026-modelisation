@@ -48,6 +48,7 @@ library(tidymodels)
 library(titanic)
 library(janitor)
 library(broom)
+library(performance)
 library(scales)
 library(patchwork)
 
@@ -300,18 +301,66 @@ $$
 ```{r}
 rapports_cotes <- tidy(modele_logistique) |>
   mutate(
-    conf.low = estimate - qnorm(0.975) * std.error,
-    conf.high = estimate + qnorm(0.975) * std.error,
-    across(
-      c(estimate, conf.low, conf.high),
-      exp
-    )
+    estimation_log = estimate,
+    erreur_type_log = std.error,
+    conf.low = exp(estimate - qnorm(0.975) * std.error),
+    conf.high = exp(estimate + qnorm(0.975) * std.error),
+    estimate = exp(estimate)
+  ) |>
+  select(
+    term, estimation_log, erreur_type_log,
+    estimate, conf.low, conf.high, p.value
   )
 
 rapports_cotes
 ```
 
+Les intervalles affichés sont des intervalles de Wald, calculés sur l'échelle des log-cotes puis exponentiés. Ce choix les aligne avec les tests z de Wald de `summary()`. Des intervalles fondés sur la vraisemblance profilée peuvent être légèrement différents. La colonne `erreur_type_log` reste explicitement sur l'échelle des log-cotes et ne doit pas être combinée directement avec le rapport de cotes exponentié.
+
 Pour `sexefemme`, le rapport compare femmes et hommes, à classe, âge et tarif identiques. Pour `classe1re`, il compare 1re et 3e classe, toutes les autres variables du modèle étant maintenues constantes.
+
+### Vérifier ce que « identiques » permet réellement
+
+`Fare` est documenté comme le tarif du passager dans le paquet. Dans ce fichier, plusieurs personnes portant le même numéro de billet possèdent souvent exactement la même valeur. Cette variable ne doit donc pas être interprétée automatiquement comme une mesure de richesse personnelle ou comme un coût individuel indépendant du groupe de voyage.
+
+```{r}
+titanic_train |>
+  clean_names() |>
+  count(ticket, fare) |>
+  filter(n > 1) |>
+  summarise(groupes_billet_tarif_repetes = n())
+```
+
+La classe et le tarif sont liés. On peut vérifier à la fois la redondance globale et la sensibilité du rapport de cotes de la classe à la présence du tarif:
+
+```{r}
+modele_sans_tarif <- update(
+  modele_logistique,
+  . ~ . - tarif
+)
+
+comparaison_classe <- bind_rows(
+  tidy(modele_logistique) |>
+    mutate(modele = "avec tarif"),
+  tidy(modele_sans_tarif) |>
+    mutate(modele = "sans tarif")
+) |>
+  filter(term %in% c("classe2e", "classe1re")) |>
+  transmute(
+    modele,
+    comparaison = recode(
+      term,
+      classe2e = "2e contre 3e",
+      classe1re = "1re contre 3e"
+    ),
+    rapport_cotes = exp(estimate)
+  )
+
+comparaison_classe
+check_collinearity(modele_logistique)
+```
+
+Ici, les VIF restent faibles à modérés, mais cela ne garantit pas que toutes les combinaisons classe-tarif soient abondantes. Le rapport de cotes de la 1re classe est conditionnel à un tarif donné et passe d'environ 14,1 sans tarif à 12,1 avec tarif. Ce résultat doit être communiqué comme une comparaison de modèle dans la zone couverte par les données, pas comme un effet causal de la classe.
 
 Un rapport de cotes:
 

@@ -332,6 +332,17 @@ modele_foret <- rand_forest(
 ) |>
   set_engine(
     "ranger",
+    num.threads = 2
+  ) |>
+  set_mode("classification")
+
+modele_foret_final <- rand_forest(
+  mtry = 4,
+  min_n = 30,
+  trees = 200
+) |>
+  set_engine(
+    "ranger",
     importance = "permutation",
     num.threads = 2
   ) |>
@@ -339,6 +350,8 @@ modele_foret <- rand_forest(
 ```
 
 La régression logistique sert de référence structurée. L'arbre ajoute des coupures et des interactions. La forêt ajoute l'agrégation. Les paramètres sont fixés avant le test. Ce tutoriel compare donc trois candidats définis, pas toutes les versions possibles de ces familles.
+
+Les deux spécifications de forêt construisent le même candidat avec les mêmes paramètres et deux fils d'exécution. `modele_foret` sert aux cinq validations sans calculer une importance inutilisée. `modele_foret_final` active l'importance par permutation seulement pour l'ajustement final, où elle sera interprétée.
 
 ## 13. Construire les workflows comparables
 
@@ -478,8 +491,14 @@ Avant le test, une recommandation doit citer au moins deux mesures, la stabilit�
 Après le choix provisoire, nous ajustons les trois pipelines sur janvier à septembre afin de comparer leurs résultats confirmatoires.
 
 ```{r}
+modeles_finaux <- list(
+  logistique = modele_logistique,
+  arbre = modele_arbre,
+  foret = modele_foret_final
+)
+
 workflows_ajustes <- map(
-  modeles,
+  modeles_finaux,
   ~ workflow() |>
     add_recipe(recette_ml) |>
     add_model(.x) |>

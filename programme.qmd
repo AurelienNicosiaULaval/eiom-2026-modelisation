@@ -8,7 +8,7 @@ format:
 
 ## Hypothèse de conception
 
-Le déroulement ci-dessous suppose une matinée de 3 h 30, incluant une pause de 15 minutes. Les horaires absolus pourront être ajustés lorsque l'EIOM aura confirmé les heures de début et de fin. La progression pédagogique et les durées relatives resteront valides.
+Le déroulement ci-dessous couvre chaque matinée de 8 h 45 à 12 h 15, avec une pause de 10 minutes. Les tableaux reprennent les conducteurs d'animation utilisés en classe.
 
 ## Résultat attendu
 
@@ -21,31 +21,36 @@ Au terme du parcours, chaque personne aura produit:
 
 ## Mercredi 26 août: régression linéaire
 
-| Temps relatif | Activité | Production |
+| Heure | Activité | Production |
 |---|---|---|
-| 0:00 à 0:15 | Défi d'ouverture: que raconte une droite? | Hypothèses individuelles |
-| 0:15 à 0:40 | Modèle, association, prédiction et causalité | Carte conceptuelle |
-| 0:40 à 1:10 | Démonstration en direct sur les ventes immobilières d'Ames | Premier modèle |
-| 1:10 à 1:30 | Coefficients, intervalles et prédictions | Interprétation rédigée |
-| 1:30 à 1:45 | Pause | |
-| 1:45 à 2:15 | Clinique de diagnostics | Verdict argumenté |
-| 2:15 à 3:00 | Pratique en équipes | Audit d'un modèle |
-| 3:00 à 3:25 | Défi: note de service en 5 phrases | Recommandation prudente |
-| 3:25 à 3:30 | Billet de sortie | Une idée, une question |
+| 8 h 45 à 9 h | Accueil, production finale et brise-glace | Question et hypothèses initiales |
+| 9 h à 9 h 30 | Objectif, unité, variables, modèle et moindres carrés | Carte conceptuelle |
+| 9 h 30 à 9 h 55 | Mission 1: choisir avant d'ajuster | Formule et verdict préliminaire |
+| 9 h 55 à 10 h 10 | Débrief de la mission 1 | Question et modèle communs |
+| 10 h 10 à 10 h 20 | Pause | |
+| 10 h 20 à 10 h 50 | Coefficients, inférence, colinéarité et intervalles | Interprétations et prédiction |
+| 10 h 50 à 11 h 15 | Mission 2: interpréter et prédire | Deux interprétations et un intervalle |
+| 11 h 15 à 11 h 30 | Débrief de la mission 2 | Résultats corrigés |
+| 11 h 30 à 11 h 50 | Hypothèses, résidus, influence et transformation | Diagnostic argumenté |
+| 11 h 50 à 12 h 10 | Mission finale: mettre le modèle à l'épreuve | Fiche modèle de cinq phrases |
+| 12 h 10 à 12 h 15 | Restitution et fermeture | Décision et limite |
 
 ## Jeudi 27 août: régression logistique
 
-| Temps relatif | Activité | Production |
+| Heure | Activité | Production |
 |---|---|---|
-| 0:00 à 0:35 | Titanic, réponse binaire et trois échelles | Question et prédictions initiales |
-| 0:35 à 1:00 | Mission 1: explorer avant d'ajuster | Graphiques et formule de modèle |
-| 1:00 à 1:25 | Modèle logistique et rapports de cotes | Interprétation conditionnelle |
-| 1:25 à 1:35 | Pause | |
-| 1:35 à 2:00 | Mission 2: ajuster et interpréter | Deux interprétations et une probabilité |
-| 2:00 à 2:30 | Test, confusion et compromis de seuil | Tableau de performance |
-| 2:30 à 2:55 | Mission 3: évaluer et choisir | Seuil justifié et calibration |
-| 2:55 à 3:20 | ROC, calibration et conditions de validité | Fiche modèle |
-| 3:20 à 3:30 | Restitution et billet de sortie | Une décision, une limite |
+| 8 h 45 à 8 h 55 | Accueil, production finale et vote | Interprétation initiale d'une probabilité |
+| 8 h 55 à 9 h 20 | Données Titanic, réponse, proportions, causalité et valeurs manquantes | Portrait descriptif prudent |
+| 9 h 20 à 9 h 40 | Bernoulli, cote, logit, vraisemblance, références et partage | Carte des trois échelles |
+| 9 h 40 à 10 h 05 | Mission 1: explorer et formuler | Graphiques et formule du modèle |
+| 10 h 05 à 10 h 15 | Débrief de la mission 1 | Modèle commun |
+| 10 h 15 à 10 h 35 | Ajustement, rapports de cotes, support, probabilités et inférence | Interprétation conditionnelle |
+| 10 h 35 à 11 h | Mission 2: ajuster et interpréter | Deux interprétations et deux probabilités |
+| 11 h à 11 h 10 | Pause | |
+| 11 h 10 à 11 h 30 | Test, seuil, confusion et mesures | Tableau de performance |
+| 11 h 30 à 11 h 55 | Mission finale: évaluer et choisir | Seuil, ROC, calibration et limite |
+| 11 h 55 à 12 h 08 | ROC, AUC, calibration, Brier et conditions | Diagnostic probabiliste complet |
+| 12 h 08 à 12 h 15 | Fiche modèle, restitution et fermeture | Fiche de six phrases |
 
 ## Vendredi 28 août: modèles d'apprentissage automatique
 

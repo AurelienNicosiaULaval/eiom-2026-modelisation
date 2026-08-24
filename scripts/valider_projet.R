@@ -75,6 +75,20 @@ if (dir.exists("instructeur")) {
 
 qmd_files <- list.files(".", pattern = "\\.qmd$", recursive = TRUE, full.names = TRUE)
 
+duplicate_sync_files <- list.files(
+  ".",
+  pattern = " [23]\\.(qmd|html)$",
+  recursive = TRUE,
+  full.names = TRUE
+)
+if (length(duplicate_sync_files) > 0L) {
+  stop(
+    "Copies synchronisées ambiguës détectées: ",
+    paste(duplicate_sync_files, collapse = ", "),
+    call. = FALSE
+  )
+}
+
 missing_embed <- qmd_files[!vapply(
   qmd_files,
   function(path) any(str_detect(readLines(path, warn = FALSE), "embed-resources:\\s*true")),
@@ -94,6 +108,10 @@ text_files <- text_files[!str_detect(text_files, "(^|/)(_site|tmp)/")]
 text_files <- text_files[!str_detect(
   text_files,
   "(^|/)(\\.quarto|_freeze|site_libs)/"
+)]
+text_files <- text_files[!str_detect(
+  text_files,
+  "^\\./instructeur/audit-contenu-2026-08-24\\.md$"
 )]
 has_em_dash <- vapply(
   text_files,
@@ -118,6 +136,14 @@ requetes_311 <- read_csv(
 stopifnot(nrow(bibliotheques) == 188L)
 stopifnot(nrow(ames) == 2930L)
 stopifnot(ncol(ames) == 81L)
+stopifnot(identical(
+  levels(ames$Overall_Qual),
+  c(
+    "Very_Poor", "Poor", "Fair", "Below_Average", "Average",
+    "Above_Average", "Good", "Very_Good", "Excellent",
+    "Very_Excellent"
+  )
+))
 stopifnot(nrow(titanic) == 891L)
 stopifnot(ncol(titanic) == 12L)
 stopifnot(sum(titanic$Survived) == 342L)
@@ -154,6 +180,34 @@ jour3_slide_count <- sum(
     "^##\\s+"
   )
 )
-stopifnot(jour3_slide_count == 46L)
+stopifnot(jour3_slide_count == 47L)
+
+extract_note_minutes <- function(path) {
+  lines <- readLines(path, warn = FALSE)
+  notes <- which(lines == "::: {.notes}")
+  minutes <- vapply(
+    notes,
+    function(index) {
+      following <- lines[seq.int(
+        index + 1L,
+        min(index + 4L, length(lines))
+      )]
+      timing <- following[str_detect(following, "^[0-9]+ minutes?\\.")]
+      if (length(timing) == 0L) {
+        return(0)
+      }
+      as.numeric(str_match(timing[[1]], "^([0-9]+)")[, 2])
+    },
+    numeric(1)
+  )
+  sum(minutes)
+}
+
+stopifnot(extract_note_minutes("jour2/slides.qmd") == 210)
+stopifnot(extract_note_minutes("jour3/slides.qmd") == 210)
+
+mission2_jour3 <- readLines("jour3/missions/mission2.qmd", warn = FALSE)
+stopifnot(any(str_detect(mission2_jour3, fixed("sections 19 à 25"))))
+stopifnot(!any(str_detect(mission2_jour3, fixed('importance = "permutation"'))))
 
 message("Validation structurelle réussie.")

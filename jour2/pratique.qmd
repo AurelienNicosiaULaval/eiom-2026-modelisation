@@ -8,14 +8,14 @@ format:
 
 ## Fonctionnement
 
-Les missions sont réalisées en équipes de trois ou quatre personnes. Elles apparaissent à trois moments de la présentation. Chaque production est réutilisée dans la mission suivante, jusqu'à la rédaction d'une fiche modèle.
+Les missions sont réalisées en équipes de trois ou quatre personnes. Elles apparaissent à trois moments de la présentation. Chaque production est réutilisée dans la mission suivante. La fiche modèle est finalisée dans la restitution, après la formalisation collective de ROC, de la calibration et du Brier.
 
 Chaque page contient le mandat, les objectifs d'apprentissage, les variables nécessaires, le code de départ, les questions d'interprétation et une vérification finale. Le [tutoriel complet](tutoriel.html) fournit une explication continue et des résultats pré-rendus.
 
 <div class="resource-grid">
 <a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Explorer la survie enregistrée et formuler le modèle.</span></a>
 <a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Ajuster le modèle et interpréter les rapports de cotes.</span></a>
-<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Évaluer, choisir un seuil et rédiger la fiche modèle.</span></a>
+<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Évaluer, choisir un seuil, examiner ROC et calibration, puis consigner une limite.</span></a>
 </div>
 
 ## Production cumulative
@@ -24,7 +24,7 @@ Chaque page contient le mandat, les objectifs d'apprentissage, les variables né
 |---|---:|---|---|
 | 1 | 25 min | Que modélisons-nous et avec quelles limites? | deux graphiques, formule et trois phrases |
 | 2 | 25 min | Que signifient les coefficients et probabilités? | deux interprétations et deux profils prédits |
-| finale | 25 min | Le modèle classe-t-il et calibre-t-il assez bien? | seuil, diagnostic et fiche de six phrases |
+| finale | 25 min | Le modèle classe-t-il et calibre-t-il assez bien? | seuil, diagnostic et limite explicite |
 
 ## Rôles
 

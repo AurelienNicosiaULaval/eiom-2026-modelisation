@@ -43,14 +43,26 @@ Les paramètres et le prétraitement restent ceux de la mission 2. Chaque candid
 
 ```{r}
 #| eval: false
-modeles <- list(
+modele_foret_final <- rand_forest(
+  mtry = 4,
+  min_n = 30,
+  trees = 200
+) |>
+  set_engine(
+    "ranger",
+    importance = "permutation",
+    num.threads = 2
+  ) |>
+  set_mode("classification")
+
+modeles_finaux <- list(
   logistique = modele_logistique,
   arbre = modele_arbre,
-  foret = modele_foret
+  foret = modele_foret_final
 )
 
 workflows_ajustes <- map(
-  modeles,
+  modeles_finaux,
   ~ workflow() |>
     add_recipe(recette_ml) |>
     add_model(.x) |>
@@ -58,7 +70,7 @@ workflows_ajustes <- map(
 )
 ```
 
-Cette étape n'utilise encore aucun résultat du test. Elle entraîne les trois pipelines exactement comme ils auraient été déployés après le choix.
+Cette étape n'utilise encore aucun résultat du test. Elle entraîne les trois pipelines exactement comme ils auraient été déployés après le choix. L'importance par permutation est activée seulement pour cette forêt finale, puisqu'elle sera réellement examinée plus loin.
 
 ## 2. Produire les probabilités futures
 
@@ -236,7 +248,7 @@ verification_brier <- predictions_finales |>
 verification_brier
 ```
 
-Les valeurs manuelles doivent correspondre aux valeurs calculées par `brier_class()`: environ 0,212, 0,207 et 0,205. Cette vérification confirme que la probabilité utilisée correspond au niveau de l'événement.
+Les valeurs manuelles doivent correspondre aux valeurs calculées par `brier_class()`: environ 0,207 pour l'arbre, 0,205 pour la forêt et 0,212 pour la logistique. Cet ordre suit l'affichage alphabétique produit par le regroupement sur `modele`. Cette vérification confirme que la probabilité utilisée correspond au niveau de l'événement.
 
 ## 8. Visualiser l'arbre sans le surinterpréter
 

@@ -27,7 +27,7 @@ Production: un tableau comparatif, un classement des trois modèles et une recom
 
 ## Règle absolue
 
-N'ouvrez pas les résultats d'octobre à décembre. Ne consultez pas la section 14 du tutoriel et n'exécutez aucune prédiction sur `test_ml` avant d'avoir remis votre recommandation signée.
+N'ouvrez pas les résultats d'octobre à décembre. Ne consultez pas les sections 19 à 25 du tutoriel et n'exécutez aucune prédiction sur `test_ml` avant d'avoir remis votre recommandation signée. Les sections 14 à 18 restent permises: elles expliquent les mesures, la validation, la stabilité et la décision dont vous avez besoin ici.
 
 Si votre équipe connaît déjà les résultats à cause d'une lecture antérieure, jouez le rôle d'un comité indépendant: utilisez seulement le tableau de validation fourni dans cette mission et justifiez le choix comme si le test était inconnu.
 
@@ -97,13 +97,12 @@ modele_foret <- rand_forest(
 ) |>
   set_engine(
     "ranger",
-    importance = "permutation",
     num.threads = 2
   ) |>
   set_mode("classification")
 ```
 
-La forêt construit 200 arbres et agrège leurs probabilités. À chaque coupure, quatre prédicteurs sont candidats. L'agrégation cherche à réduire l'instabilité d'un arbre unique, mais augmente le coût et rend l'explication d'une prédiction moins directe.
+La forêt construit 200 arbres et agrège leurs probabilités. À chaque coupure, quatre prédicteurs sont candidats. L'agrégation cherche à réduire l'instabilité d'un arbre unique, mais augmente le coût et rend l'explication d'une prédiction moins directe. L'importance par permutation n'est pas calculée pendant les cinq validations afin d'éviter un travail inutile. Elle sera activée une seule fois sur l'ajustement final, dans la mission 3.
 
 ## 3. Construire un ensemble comparable
 

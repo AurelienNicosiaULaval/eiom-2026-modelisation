@@ -63,6 +63,17 @@ Chaque paquet possède ici un rôle précis. `AmesHousing` fournit les données,
 ```{r}
 ames_complet <- make_ames()
 
+niveaux_qualite_attendus <- c(
+  "Very_Poor", "Poor", "Fair", "Below_Average", "Average",
+  "Above_Average", "Good", "Very_Good", "Excellent",
+  "Very_Excellent"
+)
+
+stopifnot(identical(
+  levels(ames_complet$Overall_Qual),
+  niveaux_qualite_attendus
+))
+
 ames <- ames_complet |>
   transmute(
     sale_price = Sale_Price,
@@ -231,7 +242,7 @@ Le test d'un coefficient est conditionnel aux autres termes du modèle. Modifier
 check_collinearity(modele_prix)
 ```
 
-Les facteurs d'inflation de la variance sont tous inférieurs à 2,4 dans ce modèle. Ils ne signalent pas une colinéarité sévère. Cette vérification ne garantit toutefois ni la bonne forme fonctionnelle ni l'absence de variables omises.
+Les facteurs d'inflation de la variance sont tous inférieurs à `r round(max(check_collinearity(modele_prix)$VIF), 1)` dans ce modèle. Ils ne signalent pas une colinéarité sévère. Cette vérification ne garantit toutefois ni la bonne forme fonctionnelle ni l'absence de variables omises.
 
 La colinéarité concerne surtout la capacité à isoler des coefficients. Deux prédicteurs très redondants peuvent produire une bonne prédiction globale tout en donnant des coefficients individuels instables et des intervalles larges.
 
@@ -336,7 +347,7 @@ ventes_influentes |>
 
 Une observation peut être atypique par sa réponse, posséder un fort levier par ses prédicteurs, ou être influente parce qu'elle modifie sensiblement l'ajustement. La distance de Cook combine ces deux dernières idées.
 
-La vente la plus influente est la ligne `r which.max(cooks.distance(modele_prix))`. Elle combine une surface de 5 642 pieds carrés, une qualité de 10 sur 10 et un prix de 160 000 dollars. Elle est inhabituelle, mais son caractère extrême ne prouve pas une erreur de saisie.
+La vente la plus influente est la ligne `r which.max(cooks.distance(modele_prix))`. Elle combine une surface de `r scales::comma(ames$gr_liv_area[[which.max(cooks.distance(modele_prix))]])` pieds carrés, une qualité de `r ames$overall_qual[[which.max(cooks.distance(modele_prix))]]` sur 10 et un prix de `r dollar(ames$sale_price[[which.max(cooks.distance(modele_prix))]], accuracy = 1)`. Elle est inhabituelle, mais son caractère extrême ne prouve pas une erreur de saisie.
 
 Avant toute exclusion, il faut vérifier la source, comprendre le contexte, comparer les résultats avec et sans l'observation et documenter la décision.
 
