@@ -29,10 +29,10 @@ Au terme du parcours, chaque personne aura produit:
 | 9 h 55 à 10 h 10 | Débrief de la mission 1 | Question et modèle communs |
 | 10 h 10 à 10 h 20 | Pause | |
 | 10 h 20 à 10 h 50 | Coefficients, inférence, colinéarité et intervalles | Interprétations et prédiction |
-| 10 h 50 à 11 h 15 | Mission 2: interpréter et prédire | Deux interprétations et un intervalle |
+| 10 h 50 à 11 h 15 | Mission 2: auditer une estimation | Deux profils, décomposition et message corrigé |
 | 11 h 15 à 11 h 30 | Débrief de la mission 2 | Résultats corrigés |
 | 11 h 30 à 11 h 50 | Hypothèses, résidus, influence et transformation | Diagnostic argumenté |
-| 11 h 50 à 12 h 10 | Mission finale: mettre le modèle à l'épreuve | Fiche modèle de cinq phrases |
+| 11 h 50 à 12 h 10 | Mission finale: répondre à un mandat | Décision et fiche modèle de cinq phrases |
 | 12 h 10 à 12 h 15 | Restitution et fermeture | Décision et limite |
 
 ## Jeudi 27 août: régression logistique
@@ -42,10 +42,10 @@ Au terme du parcours, chaque personne aura produit:
 | 8 h 45 à 8 h 55 | Accueil, production finale et vote | Interprétation initiale d'une probabilité |
 | 8 h 55 à 9 h 20 | Données Titanic, réponse, proportions, causalité et valeurs manquantes | Portrait descriptif prudent |
 | 9 h 20 à 9 h 40 | Bernoulli, cote, logit, vraisemblance, références et partage | Carte des trois échelles |
-| 9 h 40 à 10 h 05 | Mission 1: explorer et formuler | Graphiques et formule du modèle |
+| 9 h 40 à 10 h 05 | Mission 1: contester une explication simple | Comparaison stratifiée et deux formules |
 | 10 h 05 à 10 h 15 | Débrief de la mission 1 | Modèle commun |
 | 10 h 15 à 10 h 35 | Ajustement, rapports de cotes, support, probabilités et inférence | Interprétation conditionnelle |
-| 10 h 35 à 11 h | Mission 2: ajuster et interpréter | Deux interprétations et deux probabilités |
+| 10 h 35 à 11 h | Mission 2: changer le codage | Invariance, profils inédits et mémo corrigé |
 | 11 h à 11 h 10 | Pause | |
 | 11 h 10 à 11 h 30 | Test, seuil, confusion et mesures | Tableau de performance |
 | 11 h 30 à 11 h 55 | Mission finale: évaluer et choisir | Seuil, ROC, calibration et limite |

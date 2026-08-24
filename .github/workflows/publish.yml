@@ -52,6 +52,11 @@ jobs:
       - name: Rendre le site
         run: quarto render
 
+      - name: Exporter les présentations en PDF
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: Rscript scripts/exporter_presentations_pdf.R
+
       - name: Vérifier les liens locaux
         run: Rscript scripts/verifier_site.R
 

@@ -19,6 +19,7 @@ required_files <- c(
   "diagnostic.qmd",
   "preparation.qmd",
   "ressources.qmd",
+  "scripts/exporter_presentations_pdf.R",
   "data/bibliotheques_quebec_2024.csv",
   "data/requetes_311_montreal_2024_eiom.csv",
   "jour1/slides.qmd",
@@ -205,6 +206,39 @@ extract_note_minutes <- function(path) {
 
 stopifnot(extract_note_minutes("jour2/slides.qmd") == 210)
 stopifnot(extract_note_minutes("jour3/slides.qmd") == 210)
+
+stopifnot(any(str_detect(
+  readLines("jour1/missions/mission2.qmd", warn = FALSE),
+  fixed("contributions")
+)))
+stopifnot(any(str_detect(
+  readLines("jour2/missions/mission1.qmd", warn = FALSE),
+  fixed("sexe * classe")
+)))
+stopifnot(any(str_detect(
+  readLines("jour2/missions/mission2.qmd", warn = FALSE),
+  fixed("max(abs(probabilites_originales - probabilites_recodees))")
+)))
+
+workflow <- readLines(".github/workflows/publish.yml", warn = FALSE)
+stopifnot(any(str_detect(
+  workflow,
+  fixed("Rscript scripts/exporter_presentations_pdf.R")
+)))
+
+pdf_links <- c(
+  "jour1/index.qmd" = "eiom-2026-jour1-regression-lineaire.pdf",
+  "jour2/index.qmd" = "eiom-2026-jour2-regression-logistique.pdf",
+  "jour3/index.qmd" = "eiom-2026-jour3-apprentissage-automatique.pdf"
+)
+stopifnot(all(vapply(
+  names(pdf_links),
+  function(path) any(str_detect(
+    readLines(path, warn = FALSE),
+    fixed(pdf_links[[path]])
+  )),
+  logical(1)
+)))
 
 mission2_jour3 <- readLines("jour3/missions/mission2.qmd", warn = FALSE)
 stopifnot(any(str_detect(mission2_jour3, fixed("sections 19 à 25"))))

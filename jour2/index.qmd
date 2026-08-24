@@ -31,6 +31,7 @@ Le jeu Titanic rend la réponse binaire et les variables faciles à comprendre. 
 
 <div class="resource-grid">
 <a class="resource-card" href="slides.html"><span class="card-title">Présentation</span><span class="card-copy">Le fil théorique et participatif de toute la matinée.</span></a>
+<a class="resource-card" href="../telechargements/eiom-2026-jour2-regression-logistique.pdf" download><span class="card-title">PDF annotable</span><span class="card-copy">Les 43 diapositives en format paysage, une page par écran.</span></a>
 <a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Toutes les notions, le code reproductible et les lectures.</span></a>
 <a class="resource-card" href="pratique.html"><span class="card-title">Missions</span><span class="card-copy">Trois productions cumulatives réalisées en équipe.</span></a>
 </div>

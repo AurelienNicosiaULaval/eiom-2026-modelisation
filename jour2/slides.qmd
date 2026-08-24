@@ -142,8 +142,8 @@ Vous saurez expliquer une probabilité, interpréter un rapport de cotes et éva
 
 ## Une matinée, trois productions
 
-1. Explorer et formuler
-2. Ajuster et interpréter
+1. Contester une explication simple
+2. Recoder sans changer les prédictions
 3. Évaluer et choisir un seuil
 
 <div class="takeaway">Chaque mission ajoute une preuve et une limite à la fiche finale.</div>
@@ -442,22 +442,22 @@ Le modèle apprend sur `r nrow(entrainement)` lignes et sera évalué sur `r nro
 - https://www.tmwr.org/splitting.html
 :::
 
-## Mission 1: explorer et formuler
+## Mission 1: la classe suffit-elle?
 
 En 25 minutes, produisez:
 
-1. deux graphiques;
-2. une formule de modèle;
-3. trois phrases;
-4. une limite liée aux données.
+1. un graphique à l'intérieur des classes;
+2. un tableau sur les âges manquants;
+3. deux formules candidates;
+4. un verdict de quatre phrases.
 
 [Ouvrir la mission 1](missions/mission1.html)
 
 ::: {.notes}
-25 minutes. À 10 minutes, vérifier l'événement positif. À 20 minutes, imposer la rédaction.
+25 minutes. Donner l'affirmation « tout s'explique par la classe ». À 10 minutes, vérifier la comparaison stratifiée. À 18 minutes, faire distinguer modèle principal et interaction à évaluer. À 22 minutes, imposer la rédaction.
 :::
 
-## Débrief: notre modèle commun
+## Débrief: persistance n'est pas causalité
 
 $$
 \text{survie}
@@ -470,8 +470,10 @@ $$
 
 Nous cherchons des associations conditionnelles lisibles, pas le modèle historique définitif.
 
+L'écart associé au sexe enregistré persiste dans chaque classe, mais son ampleur varie. L'interaction `sexe * classe` devient une hypothèse à évaluer, pas une conclusion automatique.
+
 ::: {.notes}
-10 minutes. Faire lire deux verdicts et corriger le langage causal. Confirmer les références homme et 3e.
+10 minutes. Faire réfuter l'explication unique par la classe, puis demander ce que les comparaisons stratifiées ne contrôlent toujours pas. Confirmer le modèle principal, les références homme et 3e, et conserver l'interaction comme extension.
 :::
 
 ## Un appel suffit pour ajuster
@@ -594,25 +596,26 @@ profils |>
 3 minutes. Faire corriger la phrase « significatif donc bon prédicteur ».
 :::
 
-## Mission 2: ajuster et interpréter
+## Mission 2: changer le codage
 
 En 25 minutes, produisez:
 
-1. deux interprétations de rapports de cotes;
-2. deux probabilités de profils;
-3. une limite de portée.
+1. deux paramétrisations comparées;
+2. une vérification des probabilités;
+3. deux profils inédits;
+4. un mémo corrigé.
 
 [Ouvrir la mission 2](missions/mission2.html)
 
 ::: {.notes}
-25 minutes. À 8 minutes, vérifier les références. À 18 minutes, faire retirer tout langage causal.
+25 minutes. À 8 minutes, vérifier la référence 1re et l'âge par dix ans. À 15 minutes, faire calculer la différence maximale entre les probabilités. À 21 minutes, faire corriger le mémo.
 :::
 
 ## Pause
 
 Revenez avec une phrase:
 
-> Un rapport de cotes n'est pas...
+> Un coefficient peut changer sans que les prédictions...
 
 ::: {.notes}
 10 minutes. Reprendre exactement à l'heure.

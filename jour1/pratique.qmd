@@ -14,8 +14,8 @@ Chaque page peut être suivie sans consulter le corrigé. Elle contient le manda
 
 <div class="resource-grid">
 <a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Explorer le prix et choisir un petit ensemble de prédicteurs.</span></a>
-<a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Ajuster, interpréter et produire une prédiction honnête.</span></a>
-<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Diagnostiquer, comparer les échelles et rédiger la fiche modèle.</span></a>
+<a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Auditer deux estimations, décomposer leur écart et corriger un message.</span></a>
+<a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Utiliser les diagnostics pour accepter, réviser ou refuser un mandat.</span></a>
 </div>
 
 ## Production cumulative
@@ -23,16 +23,16 @@ Chaque page peut être suivie sans consulter le corrigé. Elle contient le manda
 À la fin des trois missions, votre équipe aura rassemblé:
 
 1. une question précise et une formule de modèle justifiée;
-2. une interprétation conditionnelle et une prédiction accompagnée de son incertitude;
-3. une fiche modèle de cinq phrases qui communique le résultat, le diagnostic et la limite.
+2. un audit de deux profils et un message corrigé avec son incertitude;
+3. une fiche modèle de cinq phrases adaptée au mandat reçu.
 
 ## Progression et responsabilités
 
 | Mission | Durée | Question dominante | Production |
 |---|---:|---|---|
 | 1 | 25 min | Que faut-il modéliser et pourquoi? | formule, graphique et trois phrases |
-| 2 | 25 min | Que signifient les coefficients et les intervalles? | deux interprétations et une décision prédictive |
-| finale | 20 min | Le modèle est-il assez stable pour l'usage prévu? | diagnostic et fiche de cinq phrases |
+| 2 | 25 min | Le message de l'agence est-il défendable? | deux profils, décomposition et message corrigé |
+| finale | 20 min | Que décider pour le mandat reçu? | diagnostic contextualisé et fiche de cinq phrases |
 
 Dans chaque équipe, répartissez au minimum trois rôles: exécution du code, surveillance des unités et rédaction. Changez de rôle entre les missions. Une personne doit toujours pouvoir expliquer le résultat sans lire la sortie R.
 

@@ -160,7 +160,31 @@ Décidez si votre conclusion principale change. Une variation numérique n'est p
 
 Comparez les signes, les ordres de grandeur et la conclusion qui serait communiquée. Ne cherchez pas l'égalité exacte des coefficients. Une conclusion est dite sensible si une décision raisonnable changerait selon que l'observation est incluse ou non.
 
-## 5. Choisir un verdict diagnostique
+## 5. Recevoir un mandat différent
+
+Votre décision doit maintenant répondre à une demande qui n'a pas été traitée mot pour mot dans la théorie. Attribuez une carte à chaque équipe.
+
+### Carte A: synthèse de marché
+
+Une analyste veut décrire des associations moyennes en dollars parmi des propriétés ordinaires comparables à celles d'Ames. Elle accepte une conclusion prudente et ne demande pas de garantie individuelle.
+
+### Carte B: devis individuel haut de gamme
+
+Une agence veut annoncer un prix presque certain pour une propriété très grande et coûteuse. Elle refuse de montrer un intervalle large à sa cliente.
+
+### Carte C: comparaison relative
+
+Une équipe de recherche veut comparer des écarts proportionnels sur une large gamme de prix. Elle accepte une interprétation en pourcentage si la structure des résidus devient plus régulière.
+
+Pour votre carte, choisissez l'une des décisions suivantes:
+
+1. utiliser le modèle avec les réserves indiquées;
+2. réviser le modèle ou la formulation avant utilisation;
+3. refuser l'usage demandé.
+
+Votre décision doit s'appuyer sur un diagnostic, une conséquence pour le mandat et une prochaine vérification. Deux équipes peuvent donc défendre des décisions différentes avec les mêmes résultats sans se contredire.
+
+## 6. Choisir un verdict diagnostique
 
 Utilisez une seule des trois catégories:
 
@@ -172,25 +196,26 @@ Utilisez une seule des trois catégories:
 
 Votre justification doit citer une preuve visible et une conséquence. Par exemple: « l'éventail des résidus rend les intervalles en dollars moins crédibles pour les propriétés coûteuses » est plus informatif que « l'homoscédasticité n'est pas respectée ».
 
-## 6. Rédiger la fiche modèle
+## 7. Rédiger la fiche modèle
 
 Écrivez exactement cinq phrases:
 
-1. « Nous avons étudié... »
-2. « Notre modèle utilise... »
-3. « À caractéristiques identiques, nous estimons que... »
-4. « Les diagnostics montrent toutefois que... »
-5. « Nous utiliserions donc ce modèle pour..., mais pas pour... »
+1. « Notre mandat consiste à... »
+2. « Le modèle utilise... »
+3. « Le résultat pertinent pour ce mandat est... »
+4. « Le diagnostic décisif montre toutefois que... »
+5. « Nous décidons donc de..., à condition de..., mais refusons de... »
 
 ## Critères de réussite
 
 Votre fiche doit:
 
-1. nommer l'unité statistique;
-2. conserver les unités du prix et de la surface;
-3. interpréter conditionnellement;
+1. nommer le mandat et l'unité statistique;
+2. conserver les unités ou l'échelle relative choisie;
+3. relier le résultat au besoin reçu;
 4. citer une preuve diagnostique précise;
-5. distinguer association, prédiction et causalité.
+5. distinguer association, prédiction et causalité;
+6. annoncer une action différente d'un simple résumé des sorties.
 
 Elle doit aussi pouvoir être lue sans la sortie R. Évitez les noms de fonctions et les seuils isolés. Nommez plutôt le résultat, la preuve diagnostique et la conséquence pour l'usage.
 
@@ -198,10 +223,10 @@ Elle doit aussi pouvoir être lue sans la sortie R. Évitez les noms de fonction
 
 Avant de remettre, demandez à une personne de l'équipe de lire uniquement les cinq phrases, sans voir le code. Elle doit pouvoir répondre:
 
-1. quelles ventes ont été étudiées?
-2. quelles caractéristiques sont dans le modèle?
-3. quelle association principale a été estimée?
+1. quel mandat a été reçu?
+2. quelles ventes et caractéristiques soutiennent la réponse?
+3. quel résultat est pertinent pour ce mandat?
 4. quel diagnostic limite la confiance?
-5. quel usage est permis et quel usage est refusé?
+5. quelle action est permise, révisée ou refusée?
 
 Si l'une de ces réponses manque, révisez la fiche plutôt que d'ajouter un résultat supplémentaire.

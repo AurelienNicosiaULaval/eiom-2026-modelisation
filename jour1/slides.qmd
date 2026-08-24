@@ -507,7 +507,7 @@ predict(modele_prix, propriete_type, interval = "prediction")
 3 minutes. Faire comparer les centres et les largeurs. Arrondir à des milliers de dollars dans la communication orale.
 :::
 
-## Mission 2 {.mission-slide}
+## Mission 2: auditer une estimation {.mission-slide}
 
 [Ouvrir la mission 2](missions/mission2.html)
 
@@ -515,28 +515,47 @@ predict(modele_prix, propriete_type, interval = "prediction")
 
 À remettre:
 
-1. une interprétation de la surface;
-2. une interprétation de la qualité;
-3. une phrase choisissant le bon intervalle.
+1. deux prédictions individuelles;
+2. une décomposition de leur écart;
+3. un message professionnel corrigé.
 
 ::: {.notes}
-25 minutes. À 12 minutes, vérifier les unités. À 20 minutes, demander de corriger tout langage causal. Garder cinq minutes pour la comparaison des intervalles.
+25 minutes. Distribuer le message contestable. À 10 minutes, vérifier que les équipes raisonnent sur les quatre différences. À 18 minutes, demander quel intervalle répond à une vente individuelle. Garder cinq minutes pour corriger le message.
 :::
 
 ## Débrief de la mission 2
 
-Repères:
+```{r}
+#| include: false
+proprietes_auditees <- tribble(
+  ~propriete, ~gr_liv_area, ~overall_qual, ~year_built, ~garage_cars,
+  "Maison A", 1400, 7L, 1990L, 1,
+  "Maison B", 1800, 6L, 2010L, 2
+)
 
-1. environ `r dollar(100 * coef(modele_prix)[["gr_liv_area"]], accuracy = 100)` pour 100 pieds carrés supplémentaires;
-2. environ `r dollar(coef(modele_prix)[["overall_qual"]], accuracy = 100)` pour un point de qualité;
-3. VIF entre `r round(min(check_collinearity(modele_prix)$VIF), 1)` et `r round(max(check_collinearity(modele_prix)$VIF), 1)`;
-4. prédiction centrale près de `r dollar(predict(modele_prix, propriete_type)[[1]], accuracy = 1000)`;
-5. intervalle individuel beaucoup plus large que l'intervalle moyen.
+predictions_auditees <- bind_cols(
+  proprietes_auditees,
+  as_tibble(predict(
+    modele_prix,
+    newdata = proprietes_auditees,
+    interval = "prediction"
+  ))
+)
 
-<div class="takeaway">Une prédiction sans intervalle donne une précision que le modèle ne possède pas.</div>
+ecart_audite <- diff(predictions_auditees$fit)
+```
+
+| Profil | Valeur ajustée | Intervalle individuel |
+|---|---:|---:|
+| Maison A | `r dollar(predictions_auditees$fit[1], accuracy = 1000)` | `r dollar(predictions_auditees$lwr[1], accuracy = 1000)` à `r dollar(predictions_auditees$upr[1], accuracy = 1000)` |
+| Maison B | `r dollar(predictions_auditees$fit[2], accuracy = 1000)` | `r dollar(predictions_auditees$lwr[2], accuracy = 1000)` à `r dollar(predictions_auditees$upr[2], accuracy = 1000)` |
+
+L'écart ajusté est d'environ `r dollar(ecart_audite, accuracy = 100)`, mais les caractéristiques poussent dans des directions opposées et l'incertitude individuelle reste large.
+
+<div class="takeaway">Appliquer un coefficient n'est pas répéter sa définition: il faut recomposer le profil, l'incertitude et la portée.</div>
 
 ::: {.notes}
-15 minutes. Faire lire deux interprétations. Corriger unités, conditionnement et causalité. Faire expliquer la différence entre les intervalles par une équipe.
+15 minutes. Faire expliquer pourquoi la qualité réduit l'avantage de la maison B, alors que surface, année et garage l'augmentent. Refuser le mot « vaudra ». Demander à une équipe de lire son message corrigé.
 :::
 
 ## Bloc 3 {.section-slide}
@@ -693,12 +712,12 @@ p_prix + p_log
 
 À remettre:
 
-1. un choix argumenté entre prix brut et logarithmique;
-2. un verdict sur l'observation influente;
+1. une décision adaptée au mandat reçu;
+2. une preuve diagnostique décisive;
 3. une fiche modèle de cinq phrases.
 
 ::: {.notes}
-20 minutes. À 8 minutes, demander un choix d'échelle provisoire. À 15 minutes, faire commencer la fiche même si l'analyse n'est pas terminée.
+20 minutes. Attribuer un mandat A, B ou C à chaque équipe. À 8 minutes, demander une décision provisoire. À 15 minutes, faire commencer la fiche même si l'analyse n'est pas terminée.
 :::
 
 ## Restitution éclair

@@ -18,6 +18,14 @@ format:
 | Le modèle est-il calibré? | Comparer probabilités prédites et fréquences observées. |
 | L'amélioration est-elle utile? | Comparer performance, stabilité, complexité et interprétabilité. |
 
+## Présentations à télécharger
+
+Les versions PDF conservent la mise en page paysage des présentations et placent une diapositive par page. Elles peuvent être téléchargées avant la séance et annotées en classe.
+
+1. [Jour 1: régression linéaire](telechargements/eiom-2026-jour1-regression-lineaire.pdf){download=""}
+2. [Jour 2: régression logistique](telechargements/eiom-2026-jour2-regression-logistique.pdf){download=""}
+3. [Jour 3: apprentissage automatique](telechargements/eiom-2026-jour3-apprentissage-automatique.pdf){download=""}
+
 ## Sources pédagogiques
 
 Le parcours s'appuie sur la progression de l'apprentissage statistique décrite par James et ses collègues [@james2021isl], ainsi que sur le cadre reproductible de `tidymodels` présenté par Kuhn et Silge [@kuhn2022tmwr]. La forêt aléatoire est introduite dans le sens de Breiman [@breiman2001random].

@@ -1,6 +1,6 @@
 ---
-title: "Mission 1: comprendre avant d'ajuster"
-subtitle: "Titanic, réponse binaire et formule de modèle"
+title: "Mission 1: contester une explication trop simple"
+subtitle: "Associations stratifiées, données manquantes et formule de modèle"
 format:
   html:
     embed-resources: true
@@ -8,38 +8,29 @@ format:
 
 ## Votre mandat
 
-Votre équipe doit préparer un premier modèle de la survie enregistrée dans l'échantillon Titanic. Avant d'ajuster quoi que ce soit, vous devez préciser ce qu'une ligne représente, décrire la réponse, examiner les valeurs manquantes et proposer une formule lisible.
+Une personne affirme que l'association visible entre le sexe enregistré et la survie s'explique uniquement par la répartition des classes. Votre équipe doit vérifier cette affirmation sans ajuster encore de modèle.
+
+Vous devez comparer les proportions à l'intérieur de chaque classe, examiner qui risque d'être retiré lorsque l'âge manque, puis proposer un modèle principal et une extension à vérifier plus tard.
 
 Durée: 25 minutes.
 
-Production: deux graphiques, une formule et un verdict de trois phrases.
+Production: un graphique stratifié, un tableau sur les âges manquants, deux formules candidates et un verdict de quatre phrases.
 
 ## Ce que vous devez apprendre
 
 À la fin de cette mission, vous devez pouvoir:
 
-1. distinguer une réponse binaire d'une probabilité;
-2. nommer l'événement considéré comme positif;
-3. repérer une valeur manquante susceptible de modifier l'échantillon d'analyse;
-4. décrire une association sans la présenter comme un effet causal;
-5. choisir des prédicteurs compréhensibles avant de voir les coefficients.
+1. distinguer une association marginale d'une association examinée à l'intérieur de groupes;
+2. reconnaître qu'une différence peut persister tout en changeant d'ampleur selon la classe;
+3. étudier la composition des données exclues plutôt que compter seulement les valeurs manquantes;
+4. proposer une interaction comme hypothèse à évaluer, sans la déclarer automatiquement nécessaire;
+5. refuser une explication causale trop simple à partir de données descriptives.
 
 ## Organisation de l'équipe
 
-La personne pilote charge et transforme les données. La personne interprète lit les tableaux et graphiques. La personne vérificatrice contrôle les niveaux de référence. La personne sceptique note les limites de l'échantillon.
+La personne pilote prépare les tableaux. La personne interprète compare les proportions à l'intérieur de chaque classe. La personne vérificatrice examine les données manquantes. La personne sceptique cherche une autre explication compatible avec les mêmes résultats.
 
-Avant d'exécuter le code, chaque personne écrit une prédiction: quel groupe devrait présenter la plus forte proportion de survie enregistrée et quelle variable risque de contenir le plus de valeurs manquantes? Ces prédictions ne sont pas des conclusions. Elles servent à rendre visibles les attentes qui pourraient influencer la lecture des graphiques.
-
-## Repères sur les variables
-
-| Variable | Signification dans le fichier | Type |
-|---|---|---|
-| `survie` | 1 si la survie est enregistrée, 0 sinon | binaire |
-| `classe` | 1re, 2e ou 3e classe | catégorielle |
-| `sexe` | sexe enregistré | catégorielle |
-| `age` | âge en années | quantitative |
-| `tarif` | tarif enregistré | quantitative |
-| `famille_bord` | nombre de proches enregistrés à bord | dénombrement |
+Avant le code, votez sur l'affirmation: `plausible`, `incertaine` ou `déjà réfutée`. Vous pourrez changer de position après l'analyse.
 
 ## 1. Charger et préparer
 
@@ -76,120 +67,101 @@ titanic_eiom <- titanic_train |>
   )
 ```
 
-Vérifiez que le tableau contient 891 lignes. Une ligne représente un passager de l'échantillon, pas tous les passagers du navire.
+Vérifiez les 891 lignes et l'événement positif. Une ligne représente un passager de cet échantillon. Les résultats restent descriptifs et historiques.
 
-La réponse `survie` prend seulement les valeurs 0 et 1. Elle ne constitue pas encore une probabilité. La proportion calculée sur plusieurs lignes est une fréquence observée; le modèle logistique produira plus tard une probabilité conditionnelle pour un profil.
-
-## 2. Décrire la réponse
+## 2. Comparer à l'intérieur de chaque classe
 
 ```{r}
 #| eval: false
-titanic_eiom |>
-  count(verite) |>
-  mutate(proportion = n / sum(n))
-```
-
-Questions:
-
-1. Combien de passagers sont enregistrés comme survivants?
-2. Quelle serait l'exactitude d'une règle qui prédit toujours la catégorie majoritaire?
-3. Cette règle fournirait-elle une probabilité utile?
-
-## 3. Vérifier les données manquantes
-
-```{r}
-#| eval: false
-titanic_eiom |>
+survie_par_classe_sexe <- titanic_eiom |>
+  group_by(classe, sexe) |>
   summarise(
-    lignes = n(),
-    age_manquant = sum(is.na(age)),
-    tarif_manquant = sum(is.na(tarif))
+    n = n(),
+    proportion_survie = mean(survie),
+    .groups = "drop"
   )
+
+survie_par_classe_sexe
+
+graphique_stratifie <- survie_par_classe_sexe |>
+  ggplot(aes(sexe, proportion_survie, fill = sexe)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  facet_wrap(vars(classe)) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    x = NULL,
+    y = "Proportion de survie enregistrée",
+    title = "La comparaison est répétée dans chaque classe"
+  )
+
+graphique_stratifie
 ```
 
-Pour le modèle commun, nous exclurons les lignes où l'âge manque. Cette stratégie est simple, mais elle réduit l'échantillon et peut introduire un biais si l'absence de l'âge est liée au profil du passager ou à la survie.
+Répondez:
 
-Comparez mentalement les deux populations:
+1. l'écart associé au sexe enregistré disparaît-il dans une classe quelconque?
+2. son ampleur semble-t-elle identique dans les trois classes?
+3. l'affirmation « tout s'explique par la classe » est-elle soutenue?
+4. ces comparaisons suffisent-elles à identifier un mécanisme causal?
 
-1. les 891 passagers du fichier initial;
-2. les 714 passagers qui disposent d'un âge et entrent dans le modèle.
+Le graphique stratifié contrôle visuellement une variable, mais il ne rend pas les groupes identiques sur l'âge, le tarif, la composition familiale ou les circonstances historiques.
 
-La seconde n'est pas automatiquement interchangeable avec la première. Votre verdict doit indiquer clairement laquelle est décrite.
+## 3. Examiner qui est exclu par l'âge manquant
 
-## 4. Comparer des groupes
+Le nombre total de 177 âges manquants a déjà été présenté. Votre tâche est différente: vérifier si ces absences sont réparties uniformément.
 
 ```{r}
 #| eval: false
-graphique_sexe <- titanic_eiom |>
-  count(sexe, verite) |>
-  group_by(sexe) |>
-  mutate(proportion = n / sum(n)) |>
-  ggplot(aes(sexe, proportion, fill = verite)) +
-  geom_col(position = "fill") +
-  labs(x = NULL, y = "Proportion", fill = "Survie enregistrée")
+manquants_par_groupe <- titanic_eiom |>
+  mutate(age_manquant = is.na(age)) |>
+  group_by(classe, verite) |>
+  summarise(
+    n = n(),
+    proportion_age_manquant = mean(age_manquant),
+    .groups = "drop"
+  )
 
-graphique_classe <- titanic_eiom |>
-  count(classe, verite) |>
-  group_by(classe) |>
-  mutate(proportion = n / sum(n)) |>
-  ggplot(aes(classe, proportion, fill = verite)) +
-  geom_col(position = "fill") +
-  labs(x = "Classe", y = "Proportion", fill = "Survie enregistrée")
-
-graphique_sexe
-graphique_classe
+manquants_par_groupe
 ```
 
-Décrivez seulement ce qui est visible. Utilisez « est associée à » plutôt que « cause » ou « protège ».
+Identifiez les groupes où l'âge manque le plus souvent. Expliquez pourquoi une analyse sur les 714 lignes complètes peut modifier la composition des classes et des résultats observés.
 
-Une bonne description répond à trois questions:
+Vous ne devez pas conclure que les données manquantes causent un biais précis. Vous devez conclure que leur répartition n'est pas uniforme et que l'analyse complète porte sur une population sélectionnée.
 
-1. quelle comparaison est visible?
-2. dans quel sens va la différence?
-3. quelle variable ou information absente pourrait encore modifier cette comparaison?
+## 4. Proposer deux formules
 
-Ne comparez pas seulement la hauteur totale des barres, puisque chaque barre est normalisée à 100 %. Comparez la part correspondant à `survecu` dans chaque groupe.
-
-## 5. Proposer la formule
-
-Le modèle commun sera:
+Modèle principal, volontairement lisible:
 
 ```{r}
 #| eval: false
 survie ~ sexe + classe + age + tarif
 ```
 
-Avant de voir les résultats, prédisez le signe attendu de chaque coefficient en tenant compte des catégories de référence: homme et 3e classe.
+Extension à évaluer si l'ampleur de l'écart semble varier selon la classe:
 
-Le graphique bivarié et le futur coefficient ne répondent pas exactement à la même question. Le graphique compare les proportions brutes. Le coefficient comparera des passagers ayant les mêmes valeurs sur les autres variables du modèle.
+```{r}
+#| eval: false
+survie ~ sexe * classe + age + tarif
+```
 
-## Si votre équipe bloque
+Expliquez ce que permettrait l'interaction `sexe * classe`: l'association du sexe enregistré ne serait plus contrainte d'être identique sur l'échelle logit dans toutes les classes.
 
-Revenez à cette grille:
+Ne choisissez pas l'extension uniquement parce que le graphique montre des différences. Elle ajoute des paramètres et devra être comparée sur des données non utilisées pour l'ajustement.
 
-| Élément | Réponse attendue |
-|---|---|
-| unité | un passager de l'échantillon |
-| événement positif | survie enregistrée |
-| référence du sexe | homme |
-| référence de la classe | 3e classe |
-| population du modèle | lignes complètes pour les quatre prédicteurs |
-| langage permis | association observée ou conditionnelle |
-| langage interdit | effet causal ou règle réelle de sauvetage |
+## 5. Rendre le verdict
 
-## Votre verdict
+Rédigez exactement quatre phrases:
 
-Rédigez exactement trois phrases:
-
-1. unité, réponse et fréquence de survie enregistrée;
-2. association graphique principale;
-3. limite liée aux valeurs manquantes ou à la portée historique.
+1. ce que montre la comparaison à l'intérieur des classes;
+2. ce qu'elle ne permet pas d'expliquer causalement;
+3. ce que révèle la répartition des âges manquants;
+4. pourquoi vous retenez le modèle principal tout en conservant l'interaction comme hypothèse à évaluer.
 
 ## Vérification avant de remettre
 
-- Les deux graphiques affichent des proportions, pas seulement des effectifs.
-- L'événement positif est clairement nommé.
-- La formule contient quatre prédicteurs lisibles.
-- Les niveaux de référence sont identifiés.
-- Aucune phrase ne prétend établir une causalité.
-- La limite des 177 âges manquants est mentionnée.
+- Le graphique compare des proportions dans chaque classe.
+- Les effectifs de chaque combinaison restent visibles dans le tableau.
+- Le verdict distingue persistance et variation d'ampleur.
+- La limite des lignes complètes concerne leur composition, pas seulement leur nombre.
+- Les deux formules sont différentes et leur rôle est expliqué.
+- Aucune phrase ne prétend reconstituer un mécanisme de sauvetage.

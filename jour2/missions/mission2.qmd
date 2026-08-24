@@ -1,6 +1,6 @@
 ---
-title: "Mission 2: ajuster et interpréter"
-subtitle: "Logit, rapports de cotes et probabilités"
+title: "Mission 2: changer le codage sans changer les prédictions"
+subtitle: "Références, unités et audit d'un mémo logistique"
 format:
   html:
     embed-resources: true
@@ -8,36 +8,27 @@ format:
 
 ## Votre mandat
 
-Votre équipe doit ajuster le modèle commun sur les données d'entraînement, interpréter deux rapports de cotes et comparer les probabilités prédites pour deux profils. Le jeu test doit rester inutilisé jusqu'à la mission finale.
+Une collègue a réajusté le modèle après avoir choisi la 1re classe comme référence et exprimé l'âge par tranches de dix ans à partir de 30 ans. Elle croit que les signes différents de certains coefficients prouvent que le modèle et ses prédictions ont changé.
+
+Votre équipe doit vérifier cette affirmation, expliquer ce qui change réellement et corriger un court mémo qui confond encore cotes et probabilités.
 
 Durée: 25 minutes.
 
-Production: deux interprétations conditionnelles, deux probabilités et une limite.
+Production: une comparaison de deux paramétrisations, deux probabilités inédites et un mémo corrigé de quatre phrases.
 
 ## Ce que vous devez apprendre
 
 À la fin de cette mission, vous devez pouvoir:
 
-1. expliquer pourquoi `family = binomial()` est utilisé;
-2. distinguer coefficient sur l'échelle logit et rapport de cotes;
-3. interpréter un rapport de cotes en nommant la comparaison et les variables maintenues constantes;
-4. reconnaître qu'un rapport de cotes n'est pas une différence de probabilités;
-5. produire une probabilité pour un profil clairement défini.
+1. distinguer le modèle statistique de son paramétrage;
+2. expliquer pourquoi une catégorie de référence change les coefficients sans modifier les valeurs ajustées;
+3. choisir une unité d'âge plus lisible;
+4. vérifier numériquement l'invariance des probabilités;
+5. corriger une interprétation qui transforme un rapport de cotes en rapport de probabilités.
 
-## Repère théorique avant le code
+## 1. Reprendre le partage fermé
 
-Le modèle n'ajuste pas directement une droite à la probabilité. Il ajuste une combinaison linéaire à la log-cote:
-
-$$
-\log\left(\frac{p}{1-p}\right)
-= \beta_0 + \beta_1X_1 + \cdots + \beta_kX_k.
-$$
-
-L'exponentielle d'un coefficient produit un rapport de cotes. Ce rapport est multiplicatif sur les cotes. Il ne donne pas directement une variation de probabilité, parce que la fonction logistique est courbe.
-
-## 1. Reprendre les données et créer le partage
-
-Reprenez l'objet `titanic_eiom` de la mission 1.
+Reprenez `titanic_eiom` de la mission 1.
 
 ```{r}
 #| eval: false
@@ -57,159 +48,136 @@ partage <- initial_split(
 entrainement <- training(partage)
 test <- testing(partage)
 
-nrow(entrainement)
-nrow(test)
-```
-
-Le partage est stratifié pour conserver approximativement la même proportion de survie enregistrée. Une fois le partage fixé, le jeu test reste fermé.
-
-Le jeu d'entraînement est l'espace de travail. Le jeu test est une réserve destinée à une évaluation finale. Si votre équipe consulte la performance du test et change ensuite la formule, elle a utilisé le test pour apprendre et l'évaluation devient trop optimiste.
-
-## 2. Ajuster le modèle logistique
-
-```{r}
-#| eval: false
-modele_logistique <- glm(
+modele_original <- glm(
   survie ~ sexe + classe + age + tarif,
   data = entrainement,
   family = binomial()
 )
-
-summary(modele_logistique)
 ```
 
-`glm()` estime une combinaison linéaire sur l'échelle des log-cotes. La fonction logistique transforme ensuite cette quantité en probabilité comprise entre 0 et 1.
+Le jeu test reste fermé. Cette mission compare deux écritures du même modèle sur les mêmes lignes d'entraînement.
 
-Dans la sortie `summary()`:
-
-- `Estimate` est le coefficient sur l'échelle logit;
-- `Std. Error` décrit son incertitude estimée;
-- `z value` standardise le coefficient par son erreur type;
-- `Pr(>|z|)` est la valeur p associée au test de Wald.
-
-Ne cherchez pas à interpréter toutes les décimales. Commencez par le signe, la comparaison et l'unité.
-
-## 3. Transformer les coefficients
+## 2. Recentrer l'âge et changer la référence
 
 ```{r}
 #| eval: false
-table_rapports_cotes <- tidy(modele_logistique) |>
+entrainement_recode <- entrainement |>
   mutate(
-    estimation_log = estimate,
-    erreur_type_log = std.error,
-    conf.low = exp(estimate - qnorm(0.975) * std.error),
-    conf.high = exp(estimate + qnorm(0.975) * std.error),
-    estimate = exp(estimate)
-  ) |>
-  select(
-    term, estimation_log, erreur_type_log,
-    estimate, conf.low, conf.high, p.value
+    classe_ref_1re = relevel(classe, ref = "1re"),
+    age_10 = (age - 30) / 10
   )
 
-table_rapports_cotes
+modele_recode <- glm(
+  survie ~ sexe + classe_ref_1re + age_10 + tarif,
+  data = entrainement_recode,
+  family = binomial()
+)
+
+tidy(modele_recode) |>
+  mutate(rapport_cotes = exp(estimate))
 ```
 
-Pour un rapport de cotes:
+Avant de comparer les nombres, écrivez ce que signifient maintenant:
 
-- une valeur supérieure à 1 correspond à des cotes plus élevées;
-- une valeur inférieure à 1 correspond à des cotes plus faibles;
-- une valeur égale à 1 correspond à l'absence de différence sur cette échelle.
+1. l'ordonnée à l'origine;
+2. `classe_ref_1re3e`;
+3. `classe_ref_1re2e`;
+4. `age_10`.
 
-L'intervalle de confiance aide à voir l'incertitude. S'il contient 1, les données restent compatibles avec l'absence d'association conditionnelle sur l'échelle des cotes, sous les hypothèses du modèle. Un intervalle étroit ne garantit toutefois ni importance pratique ni bonne prédiction.
+Le coefficient de `age_10` compare dix années supplémentaires. Le coefficient `classe_ref_1re3e` compare la 3e classe à la 1re, soit l'inverse de la comparaison précédemment affichée.
 
-Les bornes sont des intervalles de Wald: elles sont calculées sur l'échelle des log-cotes, puis exponentiées. `erreur_type_log` demeure sur l'échelle logit. Ne tentez pas de reconstruire un intervalle autour du rapport de cotes en lui ajoutant directement cette erreur type.
-
-## 4. Interpréter deux termes
-
-Complétez les formulations.
-
-Pour `sexefemme`:
-
-> Dans l'échantillon d'entraînement, à classe, âge et tarif identiques, les cotes de survie enregistrée des femmes sont estimées à ... fois celles des hommes.
-
-Pour `age`, interprétez plutôt une différence de dix ans:
+## 3. Vérifier l'invariance des probabilités
 
 ```{r}
 #| eval: false
-or_age_10 <- exp(10 * coef(modele_logistique)[["age"]])
-or_age_10
+probabilites_originales <- predict(
+  modele_original,
+  newdata = entrainement,
+  type = "response"
+)
+
+probabilites_recodees <- predict(
+  modele_recode,
+  newdata = entrainement_recode,
+  type = "response"
+)
+
+max(abs(probabilites_originales - probabilites_recodees))
 ```
 
-> À sexe, classe et tarif identiques, dix années supplémentaires sont associées à des cotes de survie enregistrée multipliées par ...
+La différence maximale devrait être seulement une erreur d'arrondi numérique. Expliquez pourquoi:
 
-Ne transformez pas directement ces nombres en points de pourcentage. La différence de probabilité dépend du profil de départ.
+1. l'ordonnée à l'origine a changé;
+2. certains coefficients de classe ont changé de signe;
+3. le coefficient de l'âge a changé d'unité;
+4. les probabilités sont pourtant identiques.
 
-::: {.callout-warning}
-Le tarif ne doit pas être présenté comme une mesure certaine de richesse personnelle. Dans ce fichier, une même valeur est souvent répétée pour plusieurs personnes partageant un numéro de billet. De plus, classe et tarif sont liés. Une comparaison « à tarif identique » doit donc être comprise comme une comparaison conditionnelle dans la zone réellement couverte par les données, pas comme un effet causal de la classe.
-:::
+Un changement de coordonnées n'est pas automatiquement un changement de surface prédictive.
 
-Utilisez cette grille pour vérifier une interprétation:
-
-| Question | Élément à nommer |
-|---|---|
-| Qui est comparé? | femme contre homme, ou dix ans supplémentaires |
-| Quelle est la référence? | homme ou âge initial |
-| Qu'est-ce qui est maintenu constant? | autres prédicteurs du modèle |
-| Sur quelle échelle? | cotes de survie enregistrée |
-| Quelle portée? | échantillon d'entraînement |
-
-## 5. Comparer deux profils
+## 4. Produire deux probabilités inédites
 
 ```{r}
 #| eval: false
-profils <- tibble(
+profils_audites <- tibble(
+  profil = c("Profil A", "Profil B"),
   sexe = factor(
     c("homme", "femme"),
     levels = levels(entrainement$sexe)
   ),
   classe = factor(
-    c("3e", "3e"),
+    c("2e", "1re"),
     levels = levels(entrainement$classe)
   ),
-  age = c(30, 30),
-  tarif = c(15, 15)
+  age = c(20, 50),
+  tarif = c(20, 60)
 )
 
-profils |>
+profils_audites <- profils_audites |>
   mutate(
-    probabilite_survie = predict(
-      modele_logistique,
-      newdata = profils,
+    classe_ref_1re = relevel(classe, ref = "1re"),
+    age_10 = (age - 30) / 10,
+    probabilite_originale = predict(
+      modele_original,
+      newdata = pick(sexe, classe, age, tarif),
+      type = "response"
+    ),
+    probabilite_recodee = predict(
+      modele_recode,
+      newdata = pick(sexe, classe_ref_1re, age_10, tarif),
       type = "response"
     )
   )
+
+profils_audites
 ```
 
-Questions:
+Ces profils diffèrent sur plusieurs caractéristiques. La différence entre leurs probabilités ne doit donc pas être attribuée à un seul coefficient.
 
-1. Pourquoi la différence de probabilité n'est-elle pas égale au rapport de cotes?
-2. Quelle population ces deux prédictions peuvent-elles raisonnablement représenter?
-3. Pourquoi ne faut-il pas encore juger la performance avec les données d'entraînement?
+## 5. Auditer le mémo
 
-Les profils sont volontairement identiques sauf pour le sexe. Cette comparaison illustre la transformation d'un rapport de cotes en probabilités conditionnelles. Elle ne représente pas une intervention réelle qui changerait le sexe d'une personne.
+Classez chaque phrase comme `acceptable`, `à corriger` ou `impossible à conclure`:
 
-## Erreurs fréquentes à éviter
+1. « Le rapport de cotes de 12,1 signifie que la probabilité de survie en 1re classe est 12,1 fois celle de la 3e classe. »
+2. « Le coefficient négatif de 3e classe dans le modèle recodé contredit le coefficient positif de 1re classe dans le modèle original. »
+3. « Exprimer l'âge par dix ans rend l'unité plus lisible sans modifier les probabilités. »
+4. « Le profil B reçoit une probabilité plus élevée, donc nous savons quelle caractéristique en est la cause. »
 
-1. Dire « 11 fois plus de probabilité » au lieu de parler des cotes.
-2. Oublier que `classe1re` est comparée à la 3e classe.
-3. Interpréter le tarif sans préciser son unité.
-4. Utiliser le jeu test pour améliorer le modèle.
-5. Transformer une association historique en mécanisme causal.
+Corrigez les phrases 1, 2 et 4. Votre formulation doit nommer les cotes, la référence, les autres variables du modèle et la limite non causale.
 
 ## Votre production
 
 Remettez:
 
-1. l'interprétation de `sexefemme`;
-2. l'interprétation de dix années d'âge;
-3. les deux probabilités prédites;
-4. une phrase qui refuse une conclusion causale ou une généralisation excessive.
+1. les rapports de cotes du modèle recodé;
+2. la différence maximale entre les deux séries de probabilités;
+3. les deux probabilités des profils A et B;
+4. un mémo corrigé de quatre phrases.
 
 ## Vérification avant de remettre
 
-- Le modèle a été ajusté seulement sur `entrainement`.
-- Les niveaux de référence sont homme et 3e classe.
+- Le modèle et les données d'entraînement sont les mêmes dans les deux écritures.
+- La nouvelle référence de classe est clairement nommée.
+- `age_10` représente dix années à partir de 30 ans.
+- Les probabilités des deux paramétrisations sont égales à l'arrondi près.
 - Les mots « cotes » et « probabilité » ne sont pas utilisés comme synonymes.
-- Chaque interprétation nomme les autres variables maintenues constantes.
-- Les probabilités sont entre 0 et 1.
-- Le jeu test n'a pas servi à modifier le modèle.
+- Le jeu test n'a pas servi à choisir ou corriger le modèle.

@@ -25,6 +25,7 @@ Comment le prix de vente d'une propriété varie-t-il avec sa surface, sa qualit
 
 <div class="resource-grid">
 <a class="resource-card" href="slides.html"><span class="card-title">Présentation centrale</span><span class="card-copy">Le fil complet de la matinée: théorie, questions, missions et débriefs.</span></a>
+<a class="resource-card" href="../telechargements/eiom-2026-jour1-regression-lineaire.pdf" download><span class="card-title">PDF annotable</span><span class="card-copy">Les 40 diapositives en format paysage, une page par écran.</span></a>
 <a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Code exécutable, résultats et interprétations.</span></a>
 <a class="resource-card" href="pratique.html"><span class="card-title">Missions</span><span class="card-copy">Trois enquêtes en équipe, intégrées au fil de la présentation.</span></a>
 </div>

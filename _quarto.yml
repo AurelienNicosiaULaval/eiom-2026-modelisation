@@ -70,6 +70,8 @@ website:
             href: jour3/pratique.qmd
       - text: "Projet final"
         href: projet-integrateur.qmd
+      - text: "Supports PDF"
+        href: ressources.qmd
     right:
       - text: "Diagnostic"
         href: diagnostic.qmd
