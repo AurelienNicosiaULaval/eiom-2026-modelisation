@@ -124,3 +124,14 @@ $code-block-bg: #eef3f7;
 .reveal pre code {
   max-height: 560px;
 }
+
+/* Reveal attribue parfois une hauteur nulle aux images extensibles lorsque la
+   présentation passe automatiquement en mode de défilement sur mobile. */
+body.reveal-scroll .reveal .slides section img.r-stretch {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  margin-inline: auto;
+}
