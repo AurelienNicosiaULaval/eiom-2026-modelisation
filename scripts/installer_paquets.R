@@ -4,6 +4,7 @@ required_packages <- c(
   "AmesHousing",
   "broom",
   "car",
+  "chromote",
   "httr2",
   "janitor",
   "jsonlite",

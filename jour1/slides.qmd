@@ -200,7 +200,10 @@ ames |>
     color = "#b5222e",
     linewidth = 1.2
   ) +
-  scale_x_continuous(labels = label_dollar()) +
+  scale_x_continuous(
+    labels = label_dollar(),
+    expand = expansion(mult = c(0.02, 0.15))
+  ) +
   labs(x = "Prix de vente", y = "Nombre de ventes")
 ```
 

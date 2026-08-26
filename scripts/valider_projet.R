@@ -12,6 +12,14 @@ if (!requireNamespace("titanic", quietly = TRUE)) {
   stop("Le paquet titanic est requis.", call. = FALSE)
 }
 
+if (!requireNamespace("chromote", quietly = TRUE)) {
+  stop("Le paquet chromote est requis pour exporter les PDF.", call. = FALSE)
+}
+
+if (!requireNamespace("jsonlite", quietly = TRUE)) {
+  stop("Le paquet jsonlite est requis pour exporter les PDF.", call. = FALSE)
+}
+
 required_files <- c(
   "_quarto.yml",
   "index.qmd",
@@ -231,6 +239,19 @@ workflow <- readLines(".github/workflows/publish.yml", warn = FALSE)
 stopifnot(any(str_detect(
   workflow,
   fixed("Rscript scripts/exporter_presentations_pdf.R")
+)))
+
+export_pdf_script <- readLines(
+  "scripts/exporter_presentations_pdf.R",
+  warn = FALSE
+)
+stopifnot(any(str_detect(
+  export_pdf_script,
+  fixed("required_image_page = c(5L")
+)))
+stopifnot(any(str_detect(
+  export_pdf_script,
+  fixed("pdf_has_image_on_page")
 )))
 
 pdf_links <- c(

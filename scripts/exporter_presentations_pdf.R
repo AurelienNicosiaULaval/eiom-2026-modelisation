@@ -28,6 +28,19 @@ if (length(chrome_candidates) == 0L) {
 
 chrome <- chrome_candidates[[1]]
 
+if (!requireNamespace("chromote", quietly = TRUE)) {
+  stop(
+    "Le paquet R chromote est requis pour attendre les figures et les équations.",
+    call. = FALSE
+  )
+}
+
+if (!requireNamespace("jsonlite", quietly = TRUE)) {
+  stop("Le paquet R jsonlite est requis pour écrire les PDF.", call. = FALSE)
+}
+
+Sys.setenv(CHROMOTE_CHROME = chrome)
+
 presentations <- data.frame(
   source = c(
     "jour1/slides.html",
@@ -40,13 +53,14 @@ presentations <- data.frame(
     "eiom-2026-jour3-apprentissage-automatique.pdf"
   ),
   expected_pages = c(40L, 43L, 48L),
+  required_image_page = c(5L, NA_integer_, NA_integer_),
   stringsAsFactors = FALSE
 )
 
 read_pdf_pages <- function(path) {
   pdfinfo <- Sys.which("pdfinfo")
   if (!nzchar(pdfinfo)) {
-    return(NA_integer_)
+    stop("L'outil pdfinfo de Poppler est requis.", call. = FALSE)
   }
 
   information <- system2(
@@ -63,6 +77,93 @@ read_pdf_pages <- function(path) {
   as.integer(trimws(sub("^Pages:", "", pages_line)))
 }
 
+pdf_has_image_on_page <- function(path, page) {
+  pdfimages <- Sys.which("pdfimages")
+  if (!nzchar(pdfimages)) {
+    stop("L'outil pdfimages de Poppler est requis.", call. = FALSE)
+  }
+
+  inventory <- system2(
+    pdfimages,
+    c("-list", shQuote(path)),
+    stdout = TRUE,
+    stderr = TRUE
+  )
+  image_lines <- inventory[grepl("^\\s*[0-9]+\\s+[0-9]+\\s+image\\s+", inventory)]
+  if (length(image_lines) == 0L) {
+    return(FALSE)
+  }
+
+  image_pages <- as.integer(sub("^\\s*([0-9]+).*$", "\\1", image_lines))
+  page %in% image_pages
+}
+
+export_pdf <- function(input_url, output_path, required_image_page = NA_integer_) {
+  session <- chromote::ChromoteSession$new(width = 1155, height = 770)
+  on.exit(session$close(), add = TRUE)
+  session$default_timeout <- 60
+  session$go_to(input_url)
+
+  required_page_js <- if (is.na(required_image_page)) {
+    "null"
+  } else {
+    as.character(required_image_page)
+  }
+
+  readiness_script <- paste(
+    "new Promise((resolve, reject) => {",
+    "  const delay = ms => new Promise(done => setTimeout(done, ms));",
+    "  const waitFor = async (test, label) => {",
+    "    for (let attempt = 0; attempt < 400; attempt += 1) {",
+    "      if (test()) return;",
+    "      await delay(50);",
+    "    }",
+    "    throw new Error('Délai dépassé: ' + label);",
+    "  };",
+    "  (async () => {",
+    "    await waitFor(() => window.Reveal && Reveal.isReady(), 'Reveal');",
+    paste0("    const requiredImagePage = ", required_page_js, ";"),
+    "    const images = [...document.querySelectorAll(\"img[data-src^='data:image/']\")];",
+    "    images.forEach(image => { image.src = image.dataset.src; });",
+    "    await Promise.all(images.map(image => image.complete ? Promise.resolve() :",
+    "      new Promise((done, fail) => { image.onload = done; image.onerror = fail; })",
+    "    ));",
+    "    if (requiredImagePage !== null) {",
+    "      const slides = [...document.querySelectorAll('.reveal .slides > section')];",
+    "      const requiredSlide = slides[requiredImagePage - 1];",
+    "      const requiredImages = requiredSlide ? [...requiredSlide.querySelectorAll('img')] : [];",
+    "      if (!requiredImages.length || requiredImages.some(image => !image.complete || image.naturalWidth === 0)) {",
+    "        throw new Error('Figure absente de la page ' + requiredImagePage);",
+    "      }",
+    "    }",
+    "    const printStyle = document.createElement('style');",
+    "    printStyle.textContent = \"@media print { .reveal .slides section img.r-stretch[src^='data:image/'] { display:block!important; width:auto!important; height:auto!important; max-width:88%!important; max-height:500px!important; margin:0 auto!important; } }\";",
+    "    document.head.appendChild(printStyle);",
+    "    if (document.querySelector('.math')) {",
+    "      await waitFor(() => window.MathJax && MathJax.Hub, 'MathJax');",
+    "      await new Promise(done => MathJax.Hub.Queue(['Typeset', MathJax.Hub, document], done));",
+    "    }",
+    "    Reveal.layout();",
+    "    await new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)));",
+    "    resolve({ imageCount: images.length });",
+    "  })().catch(error => reject(error));",
+    "})",
+    sep = "\n"
+  )
+
+  session$Runtime$evaluate(
+    readiness_script,
+    awaitPromise = TRUE,
+    returnByValue = TRUE
+  )
+
+  result <- session$Page$printToPDF(
+    printBackground = TRUE,
+    preferCSSPageSize = TRUE
+  )
+  writeBin(jsonlite::base64_dec(result$data), output_path)
+}
+
 for (index in seq_len(nrow(presentations))) {
   input_path <- file.path(site_dir, presentations$source[[index]])
   output_path <- file.path(output_dir, presentations$output[[index]])
@@ -77,32 +178,11 @@ for (index in seq_len(nrow(presentations))) {
     "?print-pdf"
   )
 
-  arguments <- c(
-    "--headless=new",
-    "--disable-gpu",
-    "--no-sandbox",
-    "--run-all-compositor-stages-before-draw",
-    "--virtual-time-budget=10000",
-    paste0("--print-to-pdf=", shQuote(output_path)),
-    "--no-pdf-header-footer",
-    shQuote(input_url)
+  export_pdf(
+    input_url,
+    output_path,
+    presentations$required_image_page[[index]]
   )
-
-  output <- system2(
-    chrome,
-    arguments,
-    stdout = TRUE,
-    stderr = TRUE
-  )
-  status <- attr(output, "status")
-
-  if (!is.null(status) && status != 0L) {
-    stop(
-      "Échec de l'export PDF de ", presentations$source[[index]],
-      ": ", paste(output, collapse = "\n"),
-      call. = FALSE
-    )
-  }
 
   if (!file.exists(output_path) || file.info(output_path)$size < 50000) {
     stop("PDF absent ou incomplet: ", output_path, call. = FALSE)
@@ -123,6 +203,18 @@ for (index in seq_len(nrow(presentations))) {
       presentations$expected_pages[[index]],
       call. = FALSE
     )
+  }
+
+  required_image_page <- presentations$required_image_page[[index]]
+  if (!is.na(required_image_page)) {
+    has_image <- pdf_has_image_on_page(output_path, required_image_page)
+    if (identical(has_image, FALSE)) {
+      stop(
+        "Figure absente de la page ", required_image_page,
+        " dans ", output_path,
+        call. = FALSE
+      )
+    }
   }
 
   message(
