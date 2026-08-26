@@ -46,6 +46,9 @@ jobs:
             any::tidyverse
             any::xml2
 
+      - name: Générer les cahiers QMD
+        run: python3 scripts/generer_cahiers_guides.py
+
       - name: Valider le projet
         run: Rscript scripts/valider_projet.R
 

@@ -16,6 +16,7 @@ Site public: https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/
 ```sh
 Rscript scripts/installer_paquets.R
 Rscript scripts/preparer_donnees.R
+python3 scripts/generer_cahiers_guides.py
 quarto render
 Rscript scripts/valider_projet.R
 Rscript scripts/verifier_site.R

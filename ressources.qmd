@@ -26,6 +26,14 @@ Les versions PDF conservent la mise en page paysage des présentations et placen
 2. [Jour 2: régression logistique](telechargements/eiom-2026-jour2-regression-logistique.pdf){download=""}
 3. [Jour 3: apprentissage automatique](telechargements/eiom-2026-jour3-apprentissage-automatique.pdf){download=""}
 
+## Cahiers QMD guidés
+
+Chaque cahier reprend intégralement les trois missions de la journée, dans leur ordre d'animation. Les questions sont suivies de zones de réponse afin que les équipes puissent conserver leur code, leurs graphiques et leurs interprétations dans un même document.
+
+1. [Jour 1: cahier QMD guidé](telechargements/canevas/eiom-2026-jour1-missions-guidees.qmd){download=""} ou [trousse ZIP](telechargements/eiom-2026-jour1-cahier-qmd.zip){download=""}
+2. [Jour 2: cahier QMD guidé](telechargements/canevas/eiom-2026-jour2-missions-guidees.qmd){download=""} ou [trousse ZIP](telechargements/eiom-2026-jour2-cahier-qmd.zip){download=""}
+3. [Jour 3: cahier QMD guidé](telechargements/canevas/eiom-2026-jour3-missions-guidees.qmd){download=""} ou [trousse ZIP avec les données 311](telechargements/eiom-2026-jour3-cahier-qmd.zip){download=""}
+
 ## Sources pédagogiques
 
 Le parcours s'appuie sur la progression de l'apprentissage statistique décrite par James et ses collègues [@james2021isl], ainsi que sur le cadre reproductible de `tidymodels` présenté par Kuhn et Silge [@kuhn2022tmwr]. La forêt aléatoire est introduite dans le sens de Breiman [@breiman2001random].

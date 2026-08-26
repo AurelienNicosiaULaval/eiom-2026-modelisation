@@ -1,0 +1,825 @@
+---
+title: "Cahier guidé des missions du jour 2"
+subtitle: "Régression logistique avec les données Titanic"
+lang: fr
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-overflow: wrap
+editor: source
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+<style>
+.response-area {
+  min-height: 7rem;
+  margin: 1.25rem 0 1.75rem;
+  padding: 1rem 1.15rem;
+  border: 2px solid #8fb8bc;
+  border-radius: 0.55rem;
+  background: #f7fbfb;
+}
+.response-area h3 {
+  margin-top: 0;
+  color: #0f5f63;
+}
+</style>
+
+## Identification
+
+Noms: _Écrivez ici._
+
+Équipe: _Écrivez ici._
+
+Date: _Écrivez ici._
+
+## Mode d'emploi
+
+Ce cahier rassemble les trois missions de la journée dans le même ordre et avec les mêmes questions que les énoncés en ligne.
+
+1. Enregistrez le QMD dans un dossier consacré à la journée.
+2. Ouvrez-le dans RStudio, Positron ou un autre éditeur compatible avec Quarto.
+3. Exécutez seulement les blocs de la mission annoncée par la personne animatrice.
+4. Remplacez les espaces de réponse par vos résultats, vos graphiques et vos interprétations.
+5. Enregistrez souvent le fichier.
+
+Les blocs portent volontairement l'option `#| eval: false`. Cette option évite que toute la journée soit exécutée automatiquement lors d'un rendu. Vous pouvez quand même exécuter un bloc au moment prévu avec le bouton d'exécution de votre éditeur. Pour inclure ensuite ses résultats dans un document HTML, remplacez son option par `#| eval: true`.
+
+::: {.callout-important}
+Ne consultez pas une mission avant son ouverture dans la présentation. Cette règle est essentielle au jour 3, où le test futur doit rester fermé jusqu'à la mission finale.
+:::
+
+## Préparer les paquets R
+
+Le bloc suivant installe uniquement les paquets manquants. Exécutez-le une fois avant l'atelier si nécessaire.
+
+```{r}
+#| eval: false
+paquets_requis <- c("tidyverse", "titanic", "janitor", "tidymodels", "broom")
+paquets_manquants <- setdiff(
+  paquets_requis,
+  rownames(installed.packages())
+)
+
+if (length(paquets_manquants) > 0) {
+  install.packages(paquets_manquants, dependencies = TRUE)
+}
+```
+
+---
+
+# Mission 1: contester une explication trop simple
+
+_Associations stratifiées, données manquantes et formule de modèle_
+
+[Ouvrir l'énoncé en ligne](https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/jour2/missions/mission1.html)
+
+## Votre mandat
+
+Une personne affirme que l'association visible entre le sexe enregistré et la survie s'explique uniquement par la répartition des classes. Votre équipe doit vérifier cette affirmation sans ajuster encore de modèle.
+
+Vous devez comparer les proportions à l'intérieur de chaque classe, examiner qui risque d'être retiré lorsque l'âge manque, puis proposer un modèle principal et une extension à vérifier plus tard.
+
+Durée: 25 minutes.
+
+Production: un graphique stratifié, un tableau sur les âges manquants, deux formules candidates et un verdict de quatre phrases.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. distinguer une association marginale d'une association examinée à l'intérieur de groupes;
+2. reconnaître qu'une différence peut persister tout en changeant d'ampleur selon la classe;
+3. étudier la composition des données exclues plutôt que compter seulement les valeurs manquantes;
+4. proposer une interaction comme hypothèse à évaluer, sans la déclarer automatiquement nécessaire;
+5. refuser une explication causale trop simple à partir de données descriptives.
+
+## Organisation de l'équipe
+
+La personne pilote prépare les tableaux. La personne interprète compare les proportions à l'intérieur de chaque classe. La personne vérificatrice examine les données manquantes. La personne sceptique cherche une autre explication compatible avec les mêmes résultats.
+
+Avant le code, votez sur l'affirmation: `plausible`, `incertaine` ou `déjà réfutée`. Vous pourrez changer de position après l'analyse.
+
+## 1. Charger et préparer
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(titanic)
+library(janitor)
+
+data("titanic_train")
+
+titanic_eiom <- titanic_train |>
+  clean_names() |>
+  transmute(
+    passenger_id,
+    survie = survived,
+    verite = factor(
+      if_else(survived == 1, "survecu", "non_survecu"),
+      levels = c("non_survecu", "survecu")
+    ),
+    classe = factor(
+      pclass,
+      levels = c(3, 2, 1),
+      labels = c("3e", "2e", "1re")
+    ),
+    sexe = factor(
+      sex,
+      levels = c("male", "female"),
+      labels = c("homme", "femme")
+    ),
+    age,
+    tarif = fare,
+    famille_bord = sib_sp + parch
+  )
+```
+
+Vérifiez les 891 lignes et l'événement positif. Une ligne représente un passager de cet échantillon. Les résultats restent descriptifs et historiques.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 2. Comparer à l'intérieur de chaque classe
+
+```{r}
+#| eval: false
+survie_par_classe_sexe <- titanic_eiom |>
+  group_by(classe, sexe) |>
+  summarise(
+    n = n(),
+    proportion_survie = mean(survie),
+    .groups = "drop"
+  )
+
+survie_par_classe_sexe
+
+graphique_stratifie <- survie_par_classe_sexe |>
+  ggplot(aes(sexe, proportion_survie, fill = sexe)) +
+  geom_col(width = 0.65, show.legend = FALSE) +
+  facet_wrap(vars(classe)) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    x = NULL,
+    y = "Proportion de survie enregistrée",
+    title = "La comparaison est répétée dans chaque classe"
+  )
+
+graphique_stratifie
+```
+
+Répondez:
+
+1. l'écart associé au sexe enregistré disparaît-il dans une classe quelconque?
+2. son ampleur semble-t-elle identique dans les trois classes?
+3. l'affirmation « tout s'explique par la classe » est-elle soutenue?
+4. ces comparaisons suffisent-elles à identifier un mécanisme causal?
+
+Le graphique stratifié contrôle visuellement une variable, mais il ne rend pas les groupes identiques sur l'âge, le tarif, la composition familiale ou les circonstances historiques.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 3. Examiner qui est exclu par l'âge manquant
+
+Le nombre total de 177 âges manquants a déjà été présenté. Votre tâche est différente: vérifier si ces absences sont réparties uniformément.
+
+```{r}
+#| eval: false
+manquants_par_groupe <- titanic_eiom |>
+  mutate(age_manquant = is.na(age)) |>
+  group_by(classe, verite) |>
+  summarise(
+    n = n(),
+    proportion_age_manquant = mean(age_manquant),
+    .groups = "drop"
+  )
+
+manquants_par_groupe
+```
+
+Identifiez les groupes où l'âge manque le plus souvent. Expliquez pourquoi une analyse sur les 714 lignes complètes peut modifier la composition des classes et des résultats observés.
+
+Vous ne devez pas conclure que les données manquantes causent un biais précis. Vous devez conclure que leur répartition n'est pas uniforme et que l'analyse complète porte sur une population sélectionnée.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 4. Proposer deux formules
+
+Modèle principal, volontairement lisible:
+
+```{r}
+#| eval: false
+survie ~ sexe + classe + age + tarif
+```
+
+Extension à évaluer si l'ampleur de l'écart semble varier selon la classe:
+
+```{r}
+#| eval: false
+survie ~ sexe * classe + age + tarif
+```
+
+Expliquez ce que permettrait l'interaction `sexe * classe`: l'association du sexe enregistré ne serait plus contrainte d'être identique sur l'échelle logit dans toutes les classes.
+
+Ne choisissez pas l'extension uniquement parce que le graphique montre des différences. Elle ajoute des paramètres et devra être comparée sur des données non utilisées pour l'ajustement.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 5. Rendre le verdict
+
+Rédigez exactement quatre phrases:
+
+1. ce que montre la comparaison à l'intérieur des classes;
+2. ce qu'elle ne permet pas d'expliquer causalement;
+3. ce que révèle la répartition des âges manquants;
+4. pourquoi vous retenez le modèle principal tout en conservant l'interaction comme hypothèse à évaluer.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## Vérification avant de remettre
+
+- Le graphique compare des proportions dans chaque classe.
+- Les effectifs de chaque combinaison restent visibles dans le tableau.
+- Le verdict distingue persistance et variation d'ampleur.
+- La limite des lignes complètes concerne leur composition, pas seulement leur nombre.
+- Les deux formules sont différentes et leur rôle est expliqué.
+- Aucune phrase ne prétend reconstituer un mécanisme de sauvetage.
+
+---
+
+# Mission 2: changer le codage sans changer les prédictions
+
+_Références, unités et audit d'un mémo logistique_
+
+[Ouvrir l'énoncé en ligne](https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/jour2/missions/mission2.html)
+
+## Votre mandat
+
+Une collègue a réajusté le modèle après avoir choisi la 1re classe comme référence et exprimé l'âge par tranches de dix ans à partir de 30 ans. Elle croit que les signes différents de certains coefficients prouvent que le modèle et ses prédictions ont changé.
+
+Votre équipe doit vérifier cette affirmation, expliquer ce qui change réellement et corriger un court mémo qui confond encore cotes et probabilités.
+
+Durée: 25 minutes.
+
+Production: une comparaison de deux paramétrisations, deux probabilités inédites et un mémo corrigé de quatre phrases.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. distinguer le modèle statistique de son paramétrage;
+2. expliquer pourquoi une catégorie de référence change les coefficients sans modifier les valeurs ajustées;
+3. choisir une unité d'âge plus lisible;
+4. vérifier numériquement l'invariance des probabilités;
+5. corriger une interprétation qui transforme un rapport de cotes en rapport de probabilités.
+
+## 1. Reprendre le partage fermé
+
+Reprenez `titanic_eiom` de la mission 1.
+
+```{r}
+#| eval: false
+library(tidymodels)
+library(broom)
+
+titanic_analyse <- titanic_eiom |>
+  drop_na(age, tarif, sexe, classe)
+
+set.seed(2026)
+partage <- initial_split(
+  titanic_analyse,
+  prop = 0.75,
+  strata = verite
+)
+
+entrainement <- training(partage)
+test <- testing(partage)
+
+modele_original <- glm(
+  survie ~ sexe + classe + age + tarif,
+  data = entrainement,
+  family = binomial()
+)
+```
+
+Le jeu test reste fermé. Cette mission compare deux écritures du même modèle sur les mêmes lignes d'entraînement.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 2. Recentrer l'âge et changer la référence
+
+```{r}
+#| eval: false
+entrainement_recode <- entrainement |>
+  mutate(
+    classe_ref_1re = relevel(classe, ref = "1re"),
+    age_10 = (age - 30) / 10
+  )
+
+modele_recode <- glm(
+  survie ~ sexe + classe_ref_1re + age_10 + tarif,
+  data = entrainement_recode,
+  family = binomial()
+)
+
+tidy(modele_recode) |>
+  mutate(rapport_cotes = exp(estimate))
+```
+
+Avant de comparer les nombres, écrivez ce que signifient maintenant:
+
+1. l'ordonnée à l'origine;
+2. `classe_ref_1re3e`;
+3. `classe_ref_1re2e`;
+4. `age_10`.
+
+Le coefficient de `age_10` compare dix années supplémentaires. Le coefficient `classe_ref_1re3e` compare la 3e classe à la 1re, soit l'inverse de la comparaison précédemment affichée.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 3. Vérifier l'invariance des probabilités
+
+```{r}
+#| eval: false
+probabilites_originales <- predict(
+  modele_original,
+  newdata = entrainement,
+  type = "response"
+)
+
+probabilites_recodees <- predict(
+  modele_recode,
+  newdata = entrainement_recode,
+  type = "response"
+)
+
+max(abs(probabilites_originales - probabilites_recodees))
+```
+
+La différence maximale devrait être seulement une erreur d'arrondi numérique. Expliquez pourquoi:
+
+1. l'ordonnée à l'origine a changé;
+2. certains coefficients de classe ont changé de signe;
+3. le coefficient de l'âge a changé d'unité;
+4. les probabilités sont pourtant identiques.
+
+Un changement de coordonnées n'est pas automatiquement un changement de surface prédictive.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 4. Produire deux probabilités inédites
+
+```{r}
+#| eval: false
+profils_audites <- tibble(
+  profil = c("Profil A", "Profil B"),
+  sexe = factor(
+    c("homme", "femme"),
+    levels = levels(entrainement$sexe)
+  ),
+  classe = factor(
+    c("2e", "1re"),
+    levels = levels(entrainement$classe)
+  ),
+  age = c(20, 50),
+  tarif = c(20, 60)
+)
+
+profils_audites <- profils_audites |>
+  mutate(
+    classe_ref_1re = relevel(classe, ref = "1re"),
+    age_10 = (age - 30) / 10,
+    probabilite_originale = predict(
+      modele_original,
+      newdata = pick(sexe, classe, age, tarif),
+      type = "response"
+    ),
+    probabilite_recodee = predict(
+      modele_recode,
+      newdata = pick(sexe, classe_ref_1re, age_10, tarif),
+      type = "response"
+    )
+  )
+
+profils_audites
+```
+
+Ces profils diffèrent sur plusieurs caractéristiques. La différence entre leurs probabilités ne doit donc pas être attribuée à un seul coefficient.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 5. Auditer le mémo
+
+Classez chaque phrase comme `acceptable`, `à corriger` ou `impossible à conclure`:
+
+1. « Le rapport de cotes de 12,1 signifie que la probabilité de survie en 1re classe est 12,1 fois celle de la 3e classe. »
+2. « Le coefficient négatif de 3e classe dans le modèle recodé contredit le coefficient positif de 1re classe dans le modèle original. »
+3. « Exprimer l'âge par dix ans rend l'unité plus lisible sans modifier les probabilités. »
+4. « Le profil B reçoit une probabilité plus élevée, donc nous savons quelle caractéristique en est la cause. »
+
+Corrigez les phrases 1, 2 et 4. Votre formulation doit nommer les cotes, la référence, les autres variables du modèle et la limite non causale.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## Votre production
+
+Remettez:
+
+1. les rapports de cotes du modèle recodé;
+2. la différence maximale entre les deux séries de probabilités;
+3. les deux probabilités des profils A et B;
+4. un mémo corrigé de quatre phrases.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## Vérification avant de remettre
+
+- Le modèle et les données d'entraînement sont les mêmes dans les deux écritures.
+- La nouvelle référence de classe est clairement nommée.
+- `age_10` représente dix années à partir de 30 ans.
+- Les probabilités des deux paramétrisations sont égales à l'arrondi près.
+- Les mots « cotes » et « probabilité » ne sont pas utilisés comme synonymes.
+- Le jeu test n'a pas servi à choisir ou corriger le modèle.
+
+---
+
+# Mission finale: évaluer avant de conclure
+
+_Confusion, seuil, discrimination et calibration_
+
+[Ouvrir l'énoncé en ligne](https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/jour2/missions/mission3.html)
+
+## Votre mandat
+
+Votre équipe doit ouvrir le jeu test, évaluer les probabilités produites par le modèle et choisir un seuil adapté à un mandat analytique. La fiche modèle de six phrases sera rédigée collectivement dans le bloc de restitution, après la formalisation de ROC, de la calibration et du Brier.
+
+Durée: 25 minutes.
+
+Production obligatoire: une matrice de confusion, une comparaison de seuils, une aire ROC, un diagnostic de calibration, un seuil justifié et une limite. Le calcul comparatif du Brier est un prolongement facultatif.
+
+## Ce que vous devez apprendre
+
+À la fin de cette mission, vous devez pouvoir:
+
+1. distinguer une probabilité d'une classe prédite;
+2. identifier vrais positifs, faux positifs, vrais négatifs et faux négatifs;
+3. expliquer le compromis entre sensibilité et spécificité;
+4. interpréter une aire ROC sans la confondre avec la calibration;
+5. choisir un seuil à partir d'un mandat, et non par automatisme;
+6. préparer les éléments nécessaires à une fiche modèle concise.
+
+## Trois familles de questions
+
+Avant de calculer, classez chaque résultat:
+
+| Famille | Question | Exemple |
+|---|---|---|
+| classification | que produit un seuil précis? | sensibilité à 0,50 |
+| discrimination | les positifs reçoivent-ils des scores plus élevés? | aire ROC |
+| calibration | les probabilités correspondent-elles aux fréquences? | graphique par groupes |
+
+Un modèle peut bien classer et mal calibrer. Il peut aussi être bien calibré en moyenne tout en séparant faiblement les deux catégories.
+
+::: {.callout-note}
+Vous allez rencontrer la courbe ROC et le graphique de calibration avant leur formalisation collective. Les explications et le code ci-dessous suffisent pour cette découverte guidée. Après la mission, la présentation reprendra ces outils, puis introduira le Brier avant la rédaction de la fiche modèle.
+:::
+
+## 1. Produire les probabilités de test
+
+```{r}
+#| eval: false
+predictions_test <- test |>
+  mutate(
+    probabilite_survie = predict(
+      modele_logistique,
+      newdata = test,
+      type = "response"
+    )
+  )
+```
+
+Ces probabilités sont hors échantillon: les lignes n'ont pas servi à estimer les coefficients.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 2. Évaluer un seuil de 0,50
+
+```{r}
+#| eval: false
+predictions_05 <- predictions_test |>
+  mutate(
+    classe_predite = factor(
+      if_else(
+        probabilite_survie >= 0.50,
+        "survecu",
+        "non_survecu"
+      ),
+      levels = levels(verite)
+    )
+  )
+
+conf_mat(
+  predictions_05,
+  truth = verite,
+  estimate = classe_predite
+)
+
+metric_set(accuracy, sens, spec, ppv)(
+  predictions_05,
+  truth = verite,
+  estimate = classe_predite,
+  event_level = "second"
+)
+```
+
+Expliquez chaque dénominateur avec des mots. La sensibilité part des survivants enregistrés; la précision part des prédictions positives.
+
+Pour vérifier votre lecture, complétez:
+
+> Parmi les passagers enregistrés comme survivants, le modèle en détecte ...
+
+> Parmi les passagers classés positifs par le modèle, ... sont enregistrés comme survivants.
+
+Ces deux phrases n'ont pas le même point de départ.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 3. Comparer trois seuils
+
+```{r}
+#| eval: false
+evaluer_seuil <- function(donnees, seuil) {
+  donnees |>
+    summarise(
+      seuil = seuil,
+      proportion_positive = mean(probabilite_survie >= seuil),
+      sensibilite = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(survie == 1),
+      specificite = sum(
+        probabilite_survie < seuil & survie == 0
+      ) / sum(survie == 0),
+      precision = sum(
+        probabilite_survie >= seuil & survie == 1
+      ) / sum(probabilite_survie >= seuil)
+    )
+}
+
+table_seuils <- map_dfr(
+  c(0.30, 0.50, 0.70),
+  ~ evaluer_seuil(predictions_test, .x)
+)
+
+table_seuils
+```
+
+Choisissez un mandat:
+
+1. repérer la plus grande proportion possible de survivants enregistrés;
+2. limiter les faux positifs;
+3. conserver un compromis entre sensibilité et spécificité.
+
+Indiquez le seuil retenu et l'erreur que ce choix accepte davantage.
+
+Votre justification doit avoir la forme:
+
+> Pour le mandat ..., nous retenons le seuil ... parce qu'il privilégie la mesure ...; en contrepartie, il augmente ...
+
+L'exactitude la plus élevée ne suffit pas à justifier le seuil. Elle additionne des erreurs qui pourraient ne pas avoir la même importance pour le mandat.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 4. Mesurer le classement
+
+```{r}
+#| eval: false
+roc_auc(
+  predictions_test,
+  truth = verite,
+  probabilite_survie,
+  event_level = "second"
+)
+
+roc_curve(
+  predictions_test,
+  truth = verite,
+  probabilite_survie,
+  event_level = "second"
+) |>
+  autoplot()
+```
+
+L'aire ROC mesure le classement de paires positives et négatives sur l'ensemble des seuils. Elle ne dit pas si une probabilité de 0,70 correspond à une fréquence observée proche de 70 %.
+
+Une aire ROC de 0,50 correspond à un classement sans information. Une valeur de 1 correspondrait à un classement parfait dans les données évaluées. Les valeurs intermédiaires ne donnent pas directement l'exactitude d'un seuil particulier.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## 5. Examiner la calibration
+
+```{r}
+#| eval: false
+calibration <- predictions_test |>
+  mutate(groupe = ntile(probabilite_survie, 5)) |>
+  summarise(
+    probabilite_moyenne = mean(probabilite_survie),
+    frequence_observee = mean(survie),
+    n = n(),
+    .by = groupe
+  )
+
+ggplot(
+  calibration,
+  aes(probabilite_moyenne, frequence_observee)
+) +
+  geom_abline(slope = 1, intercept = 0, linetype = 2) +
+  geom_line() +
+  geom_point(aes(size = n)) +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(
+    x = "Probabilité moyenne prédite",
+    y = "Fréquence observée"
+  )
+```
+
+Avec seulement 179 lignes de test, cette courbe groupée est exploratoire. Décrivez les écarts sans déclarer la calibration parfaite ou définitivement mauvaise.
+
+Si les points sont au-dessus de la diagonale, la fréquence observée dépasse la probabilité moyenne et le modèle sous-estime le risque dans ce groupe. S'ils sont sous la diagonale, il le surestime. Vérifiez toujours les axes avant d'utiliser ces mots.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## Prolongement facultatif: comparer l'erreur des probabilités
+
+Le score de Brier est l'erreur quadratique moyenne des probabilités. Un score plus petit indique une erreur probabiliste plus faible, mais il n'existe pas de seuil universel permettant de déclarer un modèle bon. Il faut le comparer à une règle simple calculée sur les mêmes observations.
+
+Utilisez comme référence une probabilité constante égale à la proportion de survivants enregistrés dans l'entraînement:
+
+```{r}
+#| eval: false
+probabilite_reference <- mean(entrainement$survie)
+
+comparaison_brier <- predictions_test |>
+  summarise(
+    brier_modele = mean(
+      (survie - probabilite_survie)^2
+    ),
+    brier_reference = mean(
+      (survie - probabilite_reference)^2
+    )
+  )
+
+comparaison_brier
+```
+
+Questions:
+
+1. Le modèle améliore-t-il l'erreur quadratique par rapport à la règle constante?
+2. Cette comparaison suffit-elle à prouver que chaque groupe de probabilités est bien calibré?
+3. Pourquoi le score de Brier et l'aire ROC ne répondent-ils pas à la même question?
+
+Le score de Brier résume l'erreur des probabilités. Le graphique de calibration montre où certaines probabilités semblent trop élevées ou trop faibles. Les deux diagnostics se complètent.
+
+## Après la mission: rédiger la fiche modèle
+
+Cette rédaction est prévue dans le bloc collectif de 12 h 08 à 12 h 15. Conservez dès maintenant votre seuil, son mandat, l'erreur davantage acceptée et votre diagnostic de calibration.
+
+Écrivez exactement six phrases:
+
+1. unité, échantillon et réponse;
+2. prédicteurs et stratégie pour les âges manquants;
+3. association conditionnelle principale;
+4. résultats de discrimination, de calibration et de Brier;
+5. seuil retenu, mandat et erreur davantage acceptée;
+6. limite historique, causale ou de généralisation.
+
+La fiche doit pouvoir être comprise sans la sortie R. Arrondissez les mesures à trois décimales et traduisez chaque nombre en une phrase. Une bonne fiche ne cherche pas à présenter le modèle comme définitif.
+
+
+::: {.response-area}
+### Réponse de l'équipe
+
+_Écrivez ici votre réponse, vos résultats et l'interprétation demandée._
+
+:::
+
+## Erreurs fréquentes à éviter
+
+1. Annoncer une aire ROC comme pourcentage de bonnes classes.
+2. Choisir 0,50 uniquement parce que c'est la valeur par défaut.
+3. Confondre sensibilité et précision.
+4. Décrire cinq groupes de calibration comme une preuve définitive.
+5. Si vous faites le prolongement, interpréter le score de Brier sans le comparer à une référence.
+6. Oublier que les âges manquants ont été exclus avant le partage.
+7. Transformer le seuil en règle historique de sauvetage.
+
+## Vérification finale
+
+- Toutes les mesures sont calculées sur `test`.
+- L'événement positif est `survecu`.
+- La sensibilité et la précision ne sont pas confondues.
+- Le seuil est relié à un mandat.
+- L'aire ROC et la calibration répondent à deux questions différentes.
+- Si le prolongement est réalisé, le score de Brier du modèle est comparé à la règle constante.
+- La petite taille du test est mentionnée.
+- Les éléments destinés à la fiche ne transforment pas l'exercice en règle réelle de sauvetage.

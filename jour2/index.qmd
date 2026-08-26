@@ -34,7 +34,10 @@ Le jeu Titanic rend la réponse binaire et les variables faciles à comprendre. 
 <a class="resource-card" href="../telechargements/eiom-2026-jour2-regression-logistique.pdf" download><span class="card-title">PDF annotable</span><span class="card-copy">Les 43 diapositives en format paysage, une page par écran.</span></a>
 <a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Toutes les notions, le code reproductible et les lectures.</span></a>
 <a class="resource-card" href="pratique.html"><span class="card-title">Missions</span><span class="card-copy">Trois productions cumulatives réalisées en équipe.</span></a>
+<a class="resource-card" href="../telechargements/canevas/eiom-2026-jour2-missions-guidees.qmd" download><span class="card-title">Cahier QMD guidé</span><span class="card-copy">Les trois missions Titanic, toutes les questions et des zones de réponse.</span></a>
 </div>
+
+La [trousse complète du jour 2](../telechargements/eiom-2026-jour2-cahier-qmd.zip){download=""} contient le cahier QMD et un court mode d'emploi.
 
 ## Production de la matinée
 

@@ -20,8 +20,15 @@ required_files <- c(
   "preparation.qmd",
   "ressources.qmd",
   "scripts/exporter_presentations_pdf.R",
+  "scripts/generer_cahiers_guides.py",
   "data/bibliotheques_quebec_2024.csv",
   "data/requetes_311_montreal_2024_eiom.csv",
+  "telechargements/canevas/eiom-2026-jour1-missions-guidees.qmd",
+  "telechargements/canevas/eiom-2026-jour2-missions-guidees.qmd",
+  "telechargements/canevas/eiom-2026-jour3-missions-guidees.qmd",
+  "telechargements/eiom-2026-jour1-cahier-qmd.zip",
+  "telechargements/eiom-2026-jour2-cahier-qmd.zip",
+  "telechargements/eiom-2026-jour3-cahier-qmd.zip",
   "jour1/slides.qmd",
   "jour1/tutoriel.qmd",
   "jour1/pratique.qmd",
@@ -239,6 +246,74 @@ stopifnot(all(vapply(
   )),
   logical(1)
 )))
+
+cahiers_guides <- tibble(
+  jour = 1:3,
+  qmd = file.path(
+    "telechargements/canevas",
+    paste0("eiom-2026-jour", 1:3, "-missions-guidees.qmd")
+  ),
+  archive = file.path(
+    "telechargements",
+    paste0("eiom-2026-jour", 1:3, "-cahier-qmd.zip")
+  )
+)
+
+for (indice in seq_len(nrow(cahiers_guides))) {
+  jour <- cahiers_guides$jour[[indice]]
+  cahier_path <- cahiers_guides$qmd[[indice]]
+  archive_path <- cahiers_guides$archive[[indice]]
+  cahier <- readLines(cahier_path, warn = FALSE)
+
+  stopifnot(any(str_detect(cahier, fixed("embed-resources: true"))))
+  stopifnot(sum(str_detect(cahier, fixed("# Mission"))) == 3L)
+  stopifnot(sum(str_detect(cahier, fixed("### Réponse de l'équipe"))) >= 10L)
+
+  sources <- file.path(
+    paste0("jour", jour),
+    "missions",
+    paste0("mission", 1:3, ".qmd")
+  )
+  questions_sources <- unlist(lapply(
+    sources,
+    function(path) {
+      lignes <- readLines(path, warn = FALSE)
+      str_squish(lignes[str_detect(lignes, fixed("?"))])
+    }
+  ))
+  questions_cahier <- str_squish(cahier[str_detect(cahier, fixed("?"))])
+  questions_manquantes <- setdiff(questions_sources, questions_cahier)
+  if (length(questions_manquantes) > 0L) {
+    stop(
+      "Questions absentes du cahier du jour ", jour, ": ",
+      paste(questions_manquantes, collapse = " | "),
+      call. = FALSE
+    )
+  }
+
+  contenu_archive <- utils::unzip(archive_path, list = TRUE)$Name
+  stopifnot(basename(cahier_path) %in% contenu_archive)
+  stopifnot("LISEZ-MOI.txt" %in% contenu_archive)
+  if (jour == 3L) {
+    stopifnot(
+      "data/requetes_311_montreal_2024_eiom.csv" %in% contenu_archive
+    )
+  }
+
+  pages_publiques <- c(
+    paste0("jour", jour, "/index.qmd"),
+    paste0("jour", jour, "/pratique.qmd"),
+    "ressources.qmd"
+  )
+  stopifnot(all(vapply(
+    pages_publiques,
+    function(path) any(str_detect(
+      readLines(path, warn = FALSE),
+      fixed(basename(cahier_path))
+    )),
+    logical(1)
+  )))
+}
 
 mission2_jour3 <- readLines("jour3/missions/mission2.qmd", warn = FALSE)
 stopifnot(any(str_detect(mission2_jour3, fixed("sections 19 à 25"))))

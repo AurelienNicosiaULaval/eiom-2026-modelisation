@@ -28,7 +28,10 @@ Comment le prix de vente d'une propriété varie-t-il avec sa surface, sa qualit
 <a class="resource-card" href="../telechargements/eiom-2026-jour1-regression-lineaire.pdf" download><span class="card-title">PDF annotable</span><span class="card-copy">Les 40 diapositives en format paysage, une page par écran.</span></a>
 <a class="resource-card" href="tutoriel.html"><span class="card-title">Tutoriel complet</span><span class="card-copy">Code exécutable, résultats et interprétations.</span></a>
 <a class="resource-card" href="pratique.html"><span class="card-title">Missions</span><span class="card-copy">Trois enquêtes en équipe, intégrées au fil de la présentation.</span></a>
+<a class="resource-card" href="../telechargements/canevas/eiom-2026-jour1-missions-guidees.qmd" download><span class="card-title">Cahier QMD guidé</span><span class="card-copy">Les trois missions, toutes les questions et des zones de réponse dans un seul fichier.</span></a>
 </div>
+
+La [trousse complète du jour 1](../telechargements/eiom-2026-jour1-cahier-qmd.zip){download=""} contient le cahier QMD et un court mode d'emploi.
 
 ## Déroulement
 

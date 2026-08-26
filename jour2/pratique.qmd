@@ -16,6 +16,7 @@ Chaque page contient le mandat, les objectifs d'apprentissage, les variables né
 <a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Contester une explication simple avec des comparaisons stratifiées.</span></a>
 <a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Changer les références et les unités sans changer les prédictions.</span></a>
 <a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Évaluer, choisir un seuil, examiner ROC et calibration, puis consigner une limite.</span></a>
+<a class="resource-card" href="../telechargements/canevas/eiom-2026-jour2-missions-guidees.qmd" download><span class="card-title">Cahier QMD guidé</span><span class="card-copy">Compléter les trois missions Titanic dans le même fichier.</span></a>
 </div>
 
 ## Production cumulative

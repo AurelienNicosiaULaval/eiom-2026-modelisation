@@ -2,6 +2,7 @@ project:
   type: website
   output-dir: _site
   execute-dir: project
+  pre-render: python3 scripts/generer_cahiers_guides.py
   render:
     - index.qmd
     - programme.qmd
@@ -19,6 +20,7 @@ project:
     - data/README.md
     - data/bibliotheques_quebec_2024.csv
     - data/requetes_311_montreal_2024_eiom.csv
+    - telechargements/
     - assets/
 
 lang: fr

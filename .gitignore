@@ -12,6 +12,7 @@ site_libs/
 .DS_Store
 tmp/
 instructeur/
+output/
 data/raw/
 data/accidents_quebec_2022_eiom.csv
 
