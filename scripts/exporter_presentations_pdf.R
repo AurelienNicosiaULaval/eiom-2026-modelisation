@@ -40,6 +40,18 @@ if (!requireNamespace("jsonlite", quietly = TRUE)) {
 }
 
 Sys.setenv(CHROMOTE_CHROME = chrome)
+options(chromote.timeout = 30)
+
+chrome_args <- chromote::default_chrome_args()
+if (identical(Sys.getenv("CI"), "true")) {
+  chrome_args <- c(
+    chrome_args,
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu"
+  )
+}
+chromote::set_chrome_args(unique(chrome_args))
 
 presentations <- data.frame(
   source = c(
