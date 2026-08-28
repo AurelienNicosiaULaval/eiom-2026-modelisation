@@ -16,6 +16,7 @@ Chaque page contient le mandat, les objectifs d'apprentissage, le code de dépar
 <a class="resource-card" href="missions/mission1.html"><span class="card-title">Mission 1</span><span class="card-copy">Définir la prédiction, protéger le futur et verrouiller le protocole.</span></a>
 <a class="resource-card" href="missions/mission2.html"><span class="card-title">Mission 2</span><span class="card-copy">Comparer moyenne et stabilité, puis choisir avant le test.</span></a>
 <a class="resource-card" href="missions/mission3.html"><span class="card-title">Mission finale</span><span class="card-copy">Ouvrir le futur, examiner la calibration et rédiger la fiche modèle.</span></a>
+<a class="resource-card" href="../data/requetes_311_montreal_2024_eiom.csv" download><span class="card-title">Données CSV</span><span class="card-copy">Télécharger les 18 000 demandes 311 requises pour réaliser les missions.</span></a>
 <a class="resource-card" href="../telechargements/canevas/eiom-2026-jour3-missions-guidees.qmd" download><span class="card-title">Cahier QMD guidé</span><span class="card-copy">Compléter les trois missions sans ouvrir le test futur trop tôt.</span></a>
 </div>
 
