@@ -801,6 +801,8 @@ Le mandat doit être attribué avant l'ouverture du test.
 
 Ouvrez la [mission 2](missions/mission2.html).
 
+Mission 1 incomplète? Exécutez d'abord le bloc de reprise autonome au début de l'énoncé.
+
 En 25 minutes:
 
 1. comparez moyenne et stabilité;
@@ -809,7 +811,7 @@ En 25 minutes:
 4. signez la décision avant de voir le test.
 
 ::: {.notes}
-25 minutes. Interdire l'ouverture de la section test du tutoriel. Photographier ou recueillir les choix signés.
+25 minutes. Demander aux équipes qui n'ont pas terminé la mission 1 d'exécuter immédiatement le bloc de reprise autonome. Il recrée les données d'entraînement, le test fermé, les cinq fenêtres et la recette commune. Interdire l'ouverture de la section test du tutoriel. Photographier ou recueillir les choix signés.
 :::
 
 ## Débrief: une recommandation avant le test

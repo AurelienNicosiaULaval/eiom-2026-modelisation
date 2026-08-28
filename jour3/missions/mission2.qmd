@@ -31,7 +31,14 @@ N'ouvrez pas les résultats d'octobre à décembre. Ne consultez pas les section
 
 Si votre équipe connaît déjà les résultats à cause d'une lecture antérieure, jouez le rôle d'un comité indépendant: utilisez seulement le tableau de validation fourni dans cette mission et justifiez le choix comme si le test était inconnu.
 
-## 1. Reprendre les objets de la mission 1
+## 1. Démarrer même si la mission 1 n'est pas terminée
+
+Deux chemins permettent de commencer immédiatement:
+
+- si votre code de la mission 1 fonctionne, conservez vos objets et passez à la vérification;
+- si un objet manque ou si votre équipe a pris du retard, exécutez le bloc de reprise ci-dessous. Il recrée uniquement l'environnement commun. Il ne complète pas les réponses d'interprétation de la mission 1 et n'ouvre aucun résultat du test futur.
+
+### Vérifier les objets existants
 
 Vous devez disposer de:
 
@@ -50,6 +57,71 @@ recette_ml
 ```
 
 Les résultats attendus sont 14 351 lignes d'entraînement et cinq fenêtres.
+
+### Bloc de reprise autonome
+
+Le fichier requis est [requetes_311_montreal_2024_eiom.csv](https://aureliennicosiaulaval.github.io/eiom-2026-modelisation/data/requetes_311_montreal_2024_eiom.csv){download=""}. Placez-le dans le sous-dossier `data` de votre projet, puis exécutez ce bloc au complet:
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(tidymodels)
+
+requetes_ml <- read_csv(
+  "data/requetes_311_montreal_2024_eiom.csv",
+  show_col_types = FALSE
+) |>
+  mutate(
+    date_creation = as.Date(date_creation),
+    verite = factor(
+      issue_7_jours,
+      levels = c("non_terminee_7_jours", "terminee_7_jours")
+    )
+  ) |>
+  arrange(date_creation, identifiant_requete)
+
+date_coupure <- as.Date("2024-10-01")
+
+entrainement_ml <- requetes_ml |>
+  filter(date_creation < date_coupure)
+
+test_ml <- requetes_ml |>
+  filter(date_creation >= date_coupure)
+
+plis_temporels <- sliding_period(
+  entrainement_ml,
+  index = date_creation,
+  period = "month",
+  lookback = 3,
+  assess_stop = 1,
+  complete = TRUE,
+  step = 1
+)
+
+recette_ml <- recipe(
+  verite ~ jour_semaine + plage_horaire + activite +
+    type_lieu + arrondissement + provenance,
+  data = entrainement_ml
+) |>
+  step_novel(all_nominal_predictors(), new_level = "Nouveau") |>
+  step_unknown(all_nominal_predictors(), new_level = "Non précisé") |>
+  step_other(activite, threshold = 0.01, other = "Autres activités") |>
+  step_other(type_lieu, threshold = 0.01, other = "Autres lieux") |>
+  step_other(
+    arrondissement,
+    threshold = 0.005,
+    other = "Autres territoires"
+  ) |>
+  step_other(provenance, threshold = 0.005, other = "Autres canaux") |>
+  step_zv(all_predictors())
+
+stopifnot(
+  nrow(entrainement_ml) == 14351,
+  nrow(plis_temporels) == 5
+)
+```
+
+Le test futur existe maintenant dans `test_ml`, mais il reste fermé: ne l'affichez pas, ne le résumez pas et ne faites aucune prédiction sur celui-ci. Si l'ajustement des trois modèles ne termine pas à temps à la section 5, utilisez les tableaux de résultats repères fournis pour poursuivre la comparaison et consacrez le temps restant à la décision.
 
 ## 2. Définir les trois candidats
 
