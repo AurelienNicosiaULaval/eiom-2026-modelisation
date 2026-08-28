@@ -196,7 +196,7 @@ jour3_slide_count <- sum(
     "^##\\s+"
   )
 )
-stopifnot(jour3_slide_count == 47L)
+stopifnot(jour3_slide_count == 48L)
 
 extract_note_minutes <- function(path) {
   lines <- readLines(path, warn = FALSE)

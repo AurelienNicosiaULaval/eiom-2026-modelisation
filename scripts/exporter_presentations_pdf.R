@@ -64,10 +64,22 @@ presentations <- data.frame(
     "eiom-2026-jour2-regression-logistique.pdf",
     "eiom-2026-jour3-apprentissage-automatique.pdf"
   ),
-  expected_pages = c(40L, 43L, 48L),
+  expected_pages = c(40L, 43L, 49L),
   required_image_page = c(5L, NA_integer_, NA_integer_),
   stringsAsFactors = FALSE
 )
+
+jour_cible <- Sys.getenv("EIOM_PRESENTATION_JOUR", unset = "")
+if (nzchar(jour_cible)) {
+  presentations <- presentations[
+    presentations$source == paste0("jour", jour_cible, "/slides.html"),
+    ,
+    drop = FALSE
+  ]
+  if (nrow(presentations) == 0L) {
+    stop("Jour de présentation inconnu: ", jour_cible, call. = FALSE)
+  }
+}
 
 read_pdf_pages <- function(path) {
   pdfinfo <- Sys.which("pdfinfo")
@@ -256,4 +268,10 @@ for (index in seq_len(nrow(presentations))) {
   )
 }
 
-message("Les trois présentations PDF sont prêtes au téléchargement.")
+message(
+  if (nzchar(jour_cible)) {
+    paste0("La présentation PDF du jour ", jour_cible, " est prête au téléchargement.")
+  } else {
+    "Les trois présentations PDF sont prêtes au téléchargement."
+  }
+)

@@ -351,6 +351,24 @@ Cette information définit la réponse, mais elle n'est pas un prédicteur dispo
 3 minutes. Demander si `dernier_statut`, `date_dernier_statut` ou `delai_dernier_statut_jours` peuvent être utilisés comme prédicteurs. Réponse: non.
 :::
 
+## Train, validation, test: trois rôles
+
+| Ensemble | Rôle | Règle |
+|---|---|---|
+| entraînement, janvier à septembre | apprendre le prétraitement et les paramètres | réutilisable pendant le développement |
+| validation temporelle, dans janvier à septembre | comparer les candidats sur des mois suivants | guide le choix avant le test |
+| test futur, octobre à décembre | estimer la performance après le choix | ouvert une seule fois |
+
+<div class="takeaway">Si le test sert à choisir ou à régler le modèle, il devient une validation et ne confirme plus la performance finale.</div>
+
+::: {.notes}
+4 minutes. Faire nommer les trois verbes: apprendre, choisir, confirmer. Expliquer que les fenêtres temporelles seront construites uniquement dans les données de janvier à septembre. Le test d'octobre à décembre reste fermé jusqu'à ce que le mandat et le choix soient écrits.
+
+[Source]
+- https://www.tmwr.org/resampling
+- https://rsample.tidymodels.org/reference/slide-resampling.html
+:::
+
 ## Le futur ne ressemble pas exactement au passé
 
 ```{r}
@@ -368,7 +386,7 @@ resume_donnees |>
 La part non terminée passe de `r scales::percent(resume_donnees |> filter(ensemble == "Entraînement", verite == "non_terminee_7_jours") |> pull(proportion), accuracy = 0.1)` à `r scales::percent(resume_donnees |> filter(ensemble == "Test futur", verite == "non_terminee_7_jours") |> pull(proportion), accuracy = 0.1)`.
 
 ::: {.notes}
-2 minutes. Demander ce que ce changement peut modifier: une référence naïve, la calibration et parfois les mesures de classement.
+1 minute. Demander ce que ce changement peut modifier: une référence naïve, la calibration et parfois les mesures de classement.
 :::
 
 ## Six prédicteurs disponibles à la création
@@ -381,7 +399,7 @@ La part non terminée passe de `r scales::percent(resume_donnees |> filter(ensem
 Nous n'utilisons ni le statut futur, ni sa date, ni le délai final.
 
 ::: {.notes}
-2 minutes. Faire classer oralement les variables permises et interdites.
+1 minute. Faire classer oralement les variables permises et interdites.
 :::
 
 ## Trois candidats, trois compromis
@@ -393,7 +411,7 @@ Nous n'utilisons ni le statut futur, ni sa date, ni le délai final.
 | Forêt | flexibilité et agrégation | interprétation indirecte |
 
 ::: {.notes}
-2 minutes. Rappeler que la régression logistique sert ici de référence sérieuse, pas de modèle faible.
+1 minute. Rappeler que la régression logistique sert ici de référence sérieuse, pas de modèle faible.
 :::
 
 ## Choisir un modèle est une décision
@@ -407,7 +425,7 @@ La performance ne suffit pas. Il faut aussi considérer:
 5. la calibration des probabilités.
 
 ::: {.notes}
-2 minutes. Demander quel critère domine si une règle doit être expliquée ligne par ligne.
+1 minute. Demander quel critère domine si une règle doit être expliquée ligne par ligne.
 :::
 
 ## La logistique impose une structure globale
